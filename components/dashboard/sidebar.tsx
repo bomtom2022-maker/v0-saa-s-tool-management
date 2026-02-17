@@ -120,10 +120,11 @@ export function Sidebar() {
           <Image
             src="/logo-tms-icon.png"
             alt="TMS One"
-            width={400}
-            height={400}
-            className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[300%] h-[300%] max-w-none object-contain mix-blend-screen"
+            width={80}
+            height={80}
+            className="absolute inset-0 w-full h-full object-contain"
             priority
+            loading="eager"
           />
         </div>
         <div>
@@ -256,9 +257,10 @@ export function Sidebar() {
             <Image
               src="/logo-tms-icon.png"
               alt="TMS One"
-              width={200}
-              height={200}
-              className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[300%] h-[300%] max-w-none object-contain mix-blend-screen"
+              width={48}
+              height={48}
+              className="absolute inset-0 w-full h-full object-contain"
+              loading="eager"
             />
           </div>
           <span className="text-lg font-extrabold text-foreground">TMS One</span>
@@ -280,7 +282,7 @@ export function Sidebar() {
       {/* Mobile sidebar drawer */}
       <aside
         className={cn(
-          "fixed inset-y-0 left-0 z-[70] w-72 transform bg-sidebar shadow-2xl transition-transform duration-300 ease-in-out md:hidden",
+          "fixed inset-y-0 left-0 z-[70] w-72 bg-sidebar shadow-2xl transition-transform duration-200 ease-out will-change-transform md:hidden",
           isMobileMenuOpen ? "translate-x-0" : "-translate-x-full"
         )}
       >

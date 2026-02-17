@@ -133,5 +133,13 @@
   }
   body {
     @apply bg-background text-foreground;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
   }
+}
+
+/* Prevent layout shift on navigation */
+main {
+  min-height: 100dvh;
+  contain: style;
 }
