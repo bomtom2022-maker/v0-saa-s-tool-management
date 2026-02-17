@@ -84,7 +84,7 @@ export function Header({ title, subtitle }: HeaderProps) {
   }, [isOpen]);
 
   return (
-    <header className="sticky top-0 z-30 flex h-14 md:h-16 items-center justify-between border-b border-border bg-background/95 px-4 md:px-6 backdrop-blur supports-[backdrop-filter]:bg-background/60 mt-14 md:mt-0">
+    <header className="sticky top-0 z-30 flex h-14 md:h-16 items-center justify-between border-b border-border bg-background px-4 md:px-6 mt-14 md:mt-0">
       <div>
         <h1 className="text-lg md:text-xl font-semibold text-foreground">{title}</h1>
         {subtitle && (

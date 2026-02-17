@@ -26,6 +26,7 @@ import {
   X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useAuth } from "@/lib/auth";
 
 interface NavItem {
   name: string;
@@ -81,6 +82,7 @@ const navigation: NavItem[] = [
 
 export function Sidebar() {
   const pathname = usePathname();
+  const { user } = useAuth();
   const [expandedItems, setExpandedItems] = useState<string[]>(["Configuracao", "Operacoes"]);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [companyLogo, setCompanyLogo] = useState<string | null>(null);
@@ -112,7 +114,7 @@ export function Sidebar() {
 
   const closeMobile = () => setIsMobileMenuOpen(false);
 
-  const SidebarContent = () => (
+  const sidebarContent = (
     <div className="flex h-full flex-col">
       {/* Logo */}
       <div className="flex h-20 items-center gap-1 border-b border-sidebar-border px-2">
@@ -122,7 +124,7 @@ export function Sidebar() {
             alt="TMS One"
             width={400}
             height={400}
-            className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[300%] h-[300%] max-w-none object-contain mix-blend-screen"
+            className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[300%] h-[300%] max-w-none object-contain"
             priority
           />
         </div>
@@ -232,8 +234,8 @@ export function Sidebar() {
             <Users className="h-4 w-4 text-primary" />
           </div>
           <div className="flex-1 min-w-0">
-            <p className="text-sm font-medium text-sidebar-foreground truncate">Usuario Exemplo</p>
-            <p className="text-xs text-muted-foreground">Administrador</p>
+            <p className="text-sm font-medium text-sidebar-foreground truncate">{user?.name || "Sem usuario"}</p>
+            <p className="text-xs text-muted-foreground">{user?.role || "-"}</p>
           </div>
         </div>
       </div>
@@ -258,7 +260,7 @@ export function Sidebar() {
               alt="TMS One"
               width={200}
               height={200}
-              className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[300%] h-[300%] max-w-none object-contain mix-blend-screen"
+              className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[300%] h-[300%] max-w-none object-contain"
             />
           </div>
           <span className="text-lg font-extrabold text-foreground">TMS One</span>
@@ -280,7 +282,7 @@ export function Sidebar() {
       {/* Mobile sidebar drawer */}
       <aside
         className={cn(
-          "fixed inset-y-0 left-0 z-[70] w-72 transform bg-sidebar shadow-2xl transition-transform duration-300 ease-in-out md:hidden",
+          "fixed inset-y-0 left-0 z-[70] w-72 bg-sidebar shadow-2xl transition-transform duration-200 ease-out will-change-transform md:hidden",
           isMobileMenuOpen ? "translate-x-0" : "-translate-x-full"
         )}
       >
@@ -292,12 +294,12 @@ export function Sidebar() {
         >
           <X className="h-5 w-5" />
         </button>
-        <SidebarContent />
+        {sidebarContent}
       </aside>
 
       {/* Desktop sidebar */}
       <aside className="hidden md:fixed md:inset-y-0 md:left-0 md:z-40 md:flex md:w-72 md:flex-col bg-sidebar border-r border-sidebar-border">
-        <SidebarContent />
+        {sidebarContent}
       </aside>
     </>
   );
