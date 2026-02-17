@@ -52,6 +52,7 @@ const defaultNavigation: NavItem[] = [
       { name: "Armarios", href: "/configuracao/armarios" },
       { name: "Tipos de Ferramenta", href: "/configuracao/tipos" },
       { name: "Status", href: "/configuracao/status" },
+      { name: "Fornecedores", href: "/configuracao/fornecedores" },
       { name: "Usuarios", href: "/configuracao/usuarios" },
     ],
   },
@@ -70,7 +71,6 @@ const defaultNavigation: NavItem[] = [
       { name: "Entrada", href: "/operacoes/entrada" },
       { name: "Saida", href: "/operacoes/saida" },
       { name: "Nota Fiscal", href: "/operacoes/nota-fiscal" },
-      { name: "Reforma", href: "/operacoes/reforma" },
     ],
   },
   {

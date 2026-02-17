@@ -64,6 +64,16 @@ export interface Tool {
   reformDate?: string; // ISO date string - next scheduled reform
 }
 
+export interface Supplier {
+  id: string;
+  name: string;
+  cnpj: string;
+  contact: string;
+  phone: string;
+  email: string;
+  isActive: boolean;
+}
+
 export interface Movement {
   id: string;
   type: 'entry' | 'exit' | 'reform_send' | 'reform_return' | 'invoice';
@@ -150,6 +160,13 @@ export const mockMovements: Movement[] = [
   { id: '2', type: 'exit', toolId: '1', userId: '4', quantity: 10, date: '2024-01-16T14:00:00', notes: 'Producao lote 2024-001' },
   { id: '3', type: 'reform_send', toolId: '4', userId: '2', quantity: 5, date: '2024-01-17T09:00:00', notes: 'Envio para afiacao' },
   { id: '4', type: 'invoice', toolId: '2', userId: '3', quantity: 30, date: '2024-01-18T11:00:00', notes: 'Reposicao estoque', invoiceNumber: 'NF-12350', supplier: 'Fornecedor B' },
+];
+
+// Placeholder suppliers
+export const mockSuppliers: Supplier[] = [
+  { id: 's1', name: 'Fornecedor A', cnpj: '12.345.678/0001-90', contact: 'Carlos Silva', phone: '(11) 99999-1111', email: 'vendas@fornecedora.com', isActive: true },
+  { id: 's2', name: 'Fornecedor B', cnpj: '98.765.432/0001-10', contact: 'Ana Souza', phone: '(11) 99999-2222', email: 'contato@fornecedorb.com', isActive: true },
+  { id: 's3', name: 'Fornecedor C', cnpj: '11.222.333/0001-44', contact: 'Roberto Lima', phone: '(11) 99999-3333', email: 'roberto@fornecedorc.com', isActive: true },
 ];
 
 // Permission profiles

@@ -9,6 +9,7 @@ import {
   mockStatuses,
   mockToolTypes,
   mockUsers,
+  mockSuppliers,
   mockProfiles,
   type Cabinet,
   type Drawer,
@@ -17,6 +18,7 @@ import {
   type ToolStatus,
   type ToolType,
   type User,
+  type Supplier,
 } from "@/lib/mock-data";
 
 interface DataStore {
@@ -34,6 +36,8 @@ interface DataStore {
   setToolTypes: React.Dispatch<React.SetStateAction<ToolType[]>>;
   users: User[];
   setUsers: React.Dispatch<React.SetStateAction<User[]>>;
+  suppliers: Supplier[];
+  setSuppliers: React.Dispatch<React.SetStateAction<Supplier[]>>;
   profiles: typeof mockProfiles;
 }
 
@@ -62,18 +66,19 @@ export function DataStoreProvider({ children }: { children: React.ReactNode }) {
   const [statuses, setStatuses] = useState<ToolStatus[]>(persisted.current?.statuses ?? mockStatuses);
   const [toolTypes, setToolTypes] = useState<ToolType[]>(persisted.current?.toolTypes ?? mockToolTypes);
   const [users, setUsers] = useState<User[]>(persisted.current?.users ?? mockUsers);
+  const [suppliers, setSuppliers] = useState<Supplier[]>(persisted.current?.suppliers ?? mockSuppliers);
 
   // Persist state to sessionStorage on every change
   useEffect(() => {
     try {
       sessionStorage.setItem(
         STORAGE_KEY,
-        JSON.stringify({ cabinets, drawers, tools, movements, statuses, toolTypes, users })
+        JSON.stringify({ cabinets, drawers, tools, movements, statuses, toolTypes, users, suppliers })
       );
     } catch {
       // ignore quota errors
     }
-  }, [cabinets, drawers, tools, movements, statuses, toolTypes, users]);
+  }, [cabinets, drawers, tools, movements, statuses, toolTypes, users, suppliers]);
 
   const value = useMemo(
     () => ({
@@ -91,9 +96,11 @@ export function DataStoreProvider({ children }: { children: React.ReactNode }) {
       setToolTypes,
       users,
       setUsers,
+      suppliers,
+      setSuppliers,
       profiles: mockProfiles,
     }),
-    [cabinets, drawers, tools, movements, statuses, toolTypes, users]
+    [cabinets, drawers, tools, movements, statuses, toolTypes, users, suppliers]
   );
 
   return (

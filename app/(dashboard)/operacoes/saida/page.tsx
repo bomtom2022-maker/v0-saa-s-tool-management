@@ -28,7 +28,7 @@ import {
   Plus,
   X,
 } from "lucide-react";
-import { type Tool } from "@/lib/mock-data";
+import { type Tool, type Supplier } from "@/lib/mock-data";
 import { useDataStore } from "@/lib/data-store";
 
 const DEFAULT_REASONS = [
@@ -41,11 +41,12 @@ const DEFAULT_REASONS = [
 ];
 
 export default function ExitPage() {
-  const { tools, setTools, cabinets, drawers, toolTypes, movements, setMovements } = useDataStore();
+  const { tools, setTools, cabinets, drawers, toolTypes, movements, setMovements, suppliers } = useDataStore();
   const [selectedTool, setSelectedTool] = useState<Tool | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [quantity, setQuantity] = useState("");
   const [notaNumber, setNotaNumber] = useState("");
+  const [selectedSupplierId, setSelectedSupplierId] = useState("");
   const [reason, setReason] = useState("Reforma");
   const [customReasons, setCustomReasons] = useState<string[]>([]);
   const [newCustomReason, setNewCustomReason] = useState("");
@@ -130,10 +131,12 @@ export default function ExitPage() {
       )
     );
 
-    // Register movement with nota and reason
+    // Register movement with nota, supplier and reason
+    const supplierName = suppliers.find(s => s.id === selectedSupplierId)?.name || "";
     const movementNotes = [
       `Motivo: ${reason}`,
       notaNumber ? `Nota: ${notaNumber}` : null,
+      supplierName ? `Fornecedor: ${supplierName}` : null,
       notes || null,
     ].filter(Boolean).join(" | ");
 
@@ -146,18 +149,21 @@ export default function ExitPage() {
         quantity: qty,
         date: exitTimestamp.toISOString(),
         notes: movementNotes,
+        invoiceNumber: notaNumber || undefined,
+        supplier: supplierName || undefined,
       },
       ...prev,
     ]);
 
     setSuccessMsg(
-      `Saida registrada em ${formatDateTime(exitTimestamp)}: -${qty} un. de ${selectedTool.code} | Motivo: ${reason}${notaNumber ? ` | Nota: ${notaNumber}` : ""} | Estoque restante: ${selectedTool.quantity - qty}`
+      `Saida registrada em ${formatDateTime(exitTimestamp)}: -${qty} un. de ${selectedTool.code} | Motivo: ${reason}${notaNumber ? ` | Nota: ${notaNumber}` : ""}${supplierName ? ` | Fornecedor: ${supplierName}` : ""} | Estoque restante: ${selectedTool.quantity - qty}`
     );
     setSuccess(true);
     setTimeout(() => setSuccess(false), 5000);
     setSelectedTool(null);
     setQuantity("");
     setNotaNumber("");
+    setSelectedSupplierId("");
     setNotes("");
     setSearchTerm("");
   };
@@ -366,6 +372,26 @@ export default function ExitPage() {
                   />
                   <p className="text-xs text-muted-foreground">
                     Numero da nota fiscal ou documento de referencia (usado para busca)
+                  </p>
+                </div>
+
+                {/* Supplier */}
+                <div className="grid gap-2">
+                  <Label className="flex items-center gap-2">
+                    Fornecedor (Destino)
+                  </Label>
+                  <Select value={selectedSupplierId} onValueChange={setSelectedSupplierId} disabled={!selectedTool}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Selecione o fornecedor" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {suppliers.filter(s => s.isActive).map((s) => (
+                        <SelectItem key={s.id} value={s.id}>{s.name} - {s.cnpj}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <p className="text-xs text-muted-foreground">
+                    Fornecedor de destino (reforma, devolucao, etc). Cadastre novos em Configuracao {'>'} Fornecedores.
                   </p>
                 </div>
 
