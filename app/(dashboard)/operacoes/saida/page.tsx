@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Header } from "@/components/dashboard/header";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -23,19 +23,65 @@ import {
   Minus,
   Archive,
   AlertTriangle,
+  Clock,
+  FileText,
+  Plus,
+  X,
 } from "lucide-react";
 import { type Tool } from "@/lib/mock-data";
 import { useDataStore } from "@/lib/data-store";
 
+const DEFAULT_REASONS = [
+  "Reforma",
+  "Consumo em maquina",
+  "Quebra",
+  "Descarte",
+  "Transferencia",
+  "Teste",
+];
+
 export default function ExitPage() {
-  const { tools, setTools, cabinets, drawers, toolTypes, statuses, movements, setMovements } = useDataStore();
+  const { tools, setTools, cabinets, drawers, toolTypes, movements, setMovements } = useDataStore();
   const [selectedTool, setSelectedTool] = useState<Tool | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [quantity, setQuantity] = useState("");
+  const [notaNumber, setNotaNumber] = useState("");
+  const [reason, setReason] = useState("Reforma");
+  const [customReasons, setCustomReasons] = useState<string[]>([]);
+  const [newCustomReason, setNewCustomReason] = useState("");
+  const [showAddReason, setShowAddReason] = useState(false);
   const [notes, setNotes] = useState("");
   const [filterCabinetId, setFilterCabinetId] = useState("all");
   const [success, setSuccess] = useState(false);
   const [successMsg, setSuccessMsg] = useState("");
+  const [currentTime, setCurrentTime] = useState(new Date());
+
+  // Load custom reasons from sessionStorage
+  useEffect(() => {
+    try {
+      const saved = sessionStorage.getItem("tms-custom-exit-reasons");
+      if (saved) setCustomReasons(JSON.parse(saved));
+    } catch {}
+  }, []);
+
+  // Live clock
+  useEffect(() => {
+    const interval = setInterval(() => setCurrentTime(new Date()), 1000);
+    return () => clearInterval(interval);
+  }, []);
+
+  const allReasons = [...DEFAULT_REASONS, ...customReasons];
+
+  const handleAddCustomReason = () => {
+    const trimmed = newCustomReason.trim();
+    if (!trimmed || allReasons.includes(trimmed)) return;
+    const updated = [...customReasons, trimmed];
+    setCustomReasons(updated);
+    setReason(trimmed);
+    setNewCustomReason("");
+    setShowAddReason(false);
+    try { sessionStorage.setItem("tms-custom-exit-reasons", JSON.stringify(updated)); } catch {}
+  };
 
   const filteredTools = tools.filter((tool) => {
     const matchesSearch =
@@ -55,12 +101,25 @@ export default function ExitPage() {
   const isLowStock = (tool: Tool) => tool.quantity <= tool.minStock;
   const maxQuantity = selectedTool?.quantity || 0;
 
+  const formatDateTime = (date: Date) => {
+    return date.toLocaleString("pt-BR", {
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit",
+    });
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!selectedTool || !quantity || !notes) return;
+    if (!selectedTool || !quantity || !reason) return;
 
     const qty = Number(quantity);
-    if (qty > maxQuantity || qty <= 0) return;
+    if (qty > maxQuantity || qty <= 0 || isNaN(qty)) return;
+
+    const exitTimestamp = new Date();
 
     // Update tool quantity
     setTools(prev =>
@@ -71,7 +130,13 @@ export default function ExitPage() {
       )
     );
 
-    // Register movement
+    // Register movement with nota and reason
+    const movementNotes = [
+      `Motivo: ${reason}`,
+      notaNumber ? `Nota: ${notaNumber}` : null,
+      notes || null,
+    ].filter(Boolean).join(" | ");
+
     setMovements(prev => [
       {
         id: `mov-${Date.now()}`,
@@ -79,17 +144,20 @@ export default function ExitPage() {
         toolId: selectedTool.id,
         userId: "eng-processo-1",
         quantity: qty,
-        date: new Date().toISOString(),
-        notes: notes,
+        date: exitTimestamp.toISOString(),
+        notes: movementNotes,
       },
       ...prev,
     ]);
 
-    setSuccessMsg(`Saida registrada: -${qty} un. de ${selectedTool.code} (${getCabinetName(selectedTool.cabinetId)}). Estoque restante: ${selectedTool.quantity - qty}`);
+    setSuccessMsg(
+      `Saida registrada em ${formatDateTime(exitTimestamp)}: -${qty} un. de ${selectedTool.code} | Motivo: ${reason}${notaNumber ? ` | Nota: ${notaNumber}` : ""} | Estoque restante: ${selectedTool.quantity - qty}`
+    );
     setSuccess(true);
-    setTimeout(() => setSuccess(false), 3000);
+    setTimeout(() => setSuccess(false), 5000);
     setSelectedTool(null);
     setQuantity("");
+    setNotaNumber("");
     setNotes("");
     setSearchTerm("");
   };
@@ -102,19 +170,25 @@ export default function ExitPage() {
       />
 
       <div className="p-4 md:p-6 space-y-4 md:space-y-6">
-        {/* Info Card */}
+        {/* Info Card with Live Clock */}
         <Card className="bg-primary/5 border-primary/20">
-          <CardContent className="flex items-center gap-4 p-4">
-            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-destructive/20">
-              <ArrowUpRight className="h-5 w-5 text-destructive" />
+          <CardContent className="flex items-center justify-between gap-4 p-4">
+            <div className="flex items-center gap-4">
+              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-destructive/20">
+                <ArrowUpRight className="h-5 w-5 text-destructive" />
+              </div>
+              <div>
+                <p className="text-sm font-medium text-foreground">
+                  Saida de Ferramentas
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  Selecione a ferramenta, informe a nota, o motivo e a quantidade. A data/hora e registrada automaticamente.
+                </p>
+              </div>
             </div>
-            <div>
-              <p className="text-sm font-medium text-foreground">
-                Saida de Ferramentas
-              </p>
-              <p className="text-xs text-muted-foreground">
-                Selecione a ferramenta, o armario de origem, e registre a quantidade de saida. O estoque sera atualizado automaticamente.
-              </p>
+            <div className="hidden sm:flex items-center gap-2 text-sm font-mono bg-background rounded-lg px-3 py-2 border border-border">
+              <Clock className="h-4 w-4 text-primary" />
+              <span className="text-foreground">{formatDateTime(currentTime)}</span>
             </div>
           </CardContent>
         </Card>
@@ -122,7 +196,7 @@ export default function ExitPage() {
         {success && (
           <Card className="bg-success/10 border-success/30">
             <CardContent className="flex items-center gap-4 p-4">
-              <CheckCircle className="h-6 w-6 text-success" />
+              <CheckCircle className="h-6 w-6 text-success shrink-0" />
               <div>
                 <p className="font-medium text-foreground">Saida Registrada!</p>
                 <p className="text-sm text-muted-foreground">{successMsg}</p>
@@ -139,7 +213,6 @@ export default function ExitPage() {
               <CardDescription>Filtre por armario e busque a ferramenta</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              {/* Filter by cabinet */}
               <div className="grid gap-2">
                 <Label className="text-xs text-muted-foreground">Filtrar por Armario</Label>
                 <Select value={filterCabinetId} onValueChange={setFilterCabinetId}>
@@ -225,6 +298,7 @@ export default function ExitPage() {
             </CardHeader>
             <CardContent>
               <form onSubmit={handleSubmit} className="space-y-4">
+                {/* Selected Tool */}
                 {selectedTool ? (
                   <div className="p-4 rounded-lg bg-secondary">
                     <div className="flex items-center gap-3">
@@ -262,6 +336,100 @@ export default function ExitPage() {
                   </div>
                 )}
 
+                {/* Date/Time - automatic */}
+                <div className="grid gap-2">
+                  <Label className="flex items-center gap-2">
+                    <Clock className="h-4 w-4 text-muted-foreground" />
+                    Data/Hora do Registro
+                  </Label>
+                  <div className="flex items-center gap-2 rounded-md border border-border bg-muted px-3 py-2">
+                    <span className="text-sm font-mono text-foreground">{formatDateTime(currentTime)}</span>
+                    <Badge variant="outline" className="ml-auto text-xs">Automatico</Badge>
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    A data e hora exata serao gravadas ao clicar em Registrar Saida
+                  </p>
+                </div>
+
+                {/* Nota number */}
+                <div className="grid gap-2">
+                  <Label htmlFor="notaNumber" className="flex items-center gap-2">
+                    <FileText className="h-4 w-4 text-muted-foreground" />
+                    Numero da Nota
+                  </Label>
+                  <Input
+                    id="notaNumber"
+                    placeholder="Ex: NF-2026-001234"
+                    value={notaNumber}
+                    onChange={(e) => setNotaNumber(e.target.value)}
+                    disabled={!selectedTool}
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Numero da nota fiscal ou documento de referencia (usado para busca)
+                  </p>
+                </div>
+
+                {/* Reason */}
+                <div className="grid gap-2">
+                  <Label>Motivo da Saida *</Label>
+                  <Select value={reason} onValueChange={setReason} disabled={!selectedTool}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Selecione o motivo" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {allReasons.map((r) => (
+                        <SelectItem key={r} value={r}>{r}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+
+                  {!showAddReason ? (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="w-fit text-xs text-muted-foreground"
+                      onClick={() => setShowAddReason(true)}
+                      disabled={!selectedTool}
+                    >
+                      <Plus className="h-3 w-3 mr-1" />
+                      Adicionar outro motivo
+                    </Button>
+                  ) : (
+                    <div className="flex items-center gap-2">
+                      <Input
+                        placeholder="Novo motivo..."
+                        value={newCustomReason}
+                        onChange={(e) => setNewCustomReason(e.target.value)}
+                        className="text-sm"
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") {
+                            e.preventDefault();
+                            handleAddCustomReason();
+                          }
+                        }}
+                      />
+                      <Button
+                        type="button"
+                        size="sm"
+                        onClick={handleAddCustomReason}
+                        disabled={!newCustomReason.trim()}
+                      >
+                        <Plus className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => { setShowAddReason(false); setNewCustomReason(""); }}
+                      >
+                        <X className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  )}
+                </div>
+
+                {/* Quantity */}
                 <div className="grid gap-2">
                   <Label htmlFor="exitQty">Quantidade *</Label>
                   <Input
@@ -288,15 +456,15 @@ export default function ExitPage() {
                   )}
                 </div>
 
+                {/* Notes */}
                 <div className="grid gap-2">
-                  <Label htmlFor="exitNotes">Motivo / Observacoes *</Label>
+                  <Label htmlFor="exitNotes">Observacoes</Label>
                   <Textarea
                     id="exitNotes"
-                    placeholder="Motivo da saida, numero do OP, maquina, operador, etc."
+                    placeholder="Numero da OP, maquina, operador, informacoes adicionais..."
                     value={notes}
                     onChange={(e) => setNotes(e.target.value)}
                     disabled={!selectedTool}
-                    required
                   />
                 </div>
 
@@ -304,7 +472,7 @@ export default function ExitPage() {
                   type="submit"
                   className="w-full"
                   variant="destructive"
-                  disabled={!selectedTool || !quantity || !notes || Number(quantity) > maxQuantity || Number(quantity) <= 0}
+                  disabled={!selectedTool || !quantity || !reason || Number(quantity) > maxQuantity || Number(quantity) <= 0}
                 >
                   <Minus className="mr-2 h-4 w-4" />
                   Registrar Saida
