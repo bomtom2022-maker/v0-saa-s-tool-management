@@ -19,10 +19,14 @@ import { useDataStore } from "@/lib/data-store";
 export default function DashboardPage() {
   const { cabinets, tools, movements, statuses } = useDataStore();
 
-  // Calculate stats from shared store
-  const totalTools = cabinets.reduce((acc, cab) => acc + cab.totalTools, 0);
+  // Calculate stats dynamically from live tools data
+  const totalTools = tools.reduce((acc, t) => acc + t.quantity, 0);
   const lowStockTools = tools.filter((t) => t.quantity <= t.minStock).length;
   const inReformTools = tools.filter((t) => t.statusId === "3").length;
+
+  // Calculate tools per cabinet dynamically
+  const toolsPerCabinet = (cabinetId: string) =>
+    tools.filter((t) => t.cabinetId === cabinetId).reduce((acc, t) => acc + t.quantity, 0);
 
   return (
     <div className="min-h-screen">
@@ -39,7 +43,6 @@ export default function DashboardPage() {
             value={totalTools}
             subtitle="Em todos os armarios"
             icon={Package}
-            trend={{ value: 12, isPositive: true }}
           />
           <StatsCard
             title="Armarios Ativos"
@@ -149,7 +152,7 @@ export default function DashboardPage() {
                     </div>
                     <div className="text-right">
                       <p className="text-sm font-semibold text-foreground">
-                        {cabinet.totalTools}
+                        {toolsPerCabinet(cabinet.id)}
                       </p>
                       <p className="text-xs text-muted-foreground">ferramentas</p>
                     </div>
