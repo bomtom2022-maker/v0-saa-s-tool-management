@@ -21,6 +21,7 @@ export default function DashboardPage() {
 
   // Calculate stats dynamically from live tools data
   const totalTools = tools.reduce((acc, t) => acc + t.quantity, 0);
+  console.log("[v0] DASHBOARD - totalTools:", totalTools, "tools count:", tools.length, "first 3 tools:", tools.slice(0, 3).map(t => `${t.code}:${t.quantity}`));
   const lowStockTools = tools.filter((t) => t.quantity <= t.minStock).length;
   const inReformTools = tools.filter((t) => t.statusId === "3").length;
 

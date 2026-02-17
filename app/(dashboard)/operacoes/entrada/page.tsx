@@ -85,13 +85,17 @@ export default function EntryPage() {
     if (!selectedTool || !quantity) return;
 
     const qty = Number(quantity);
+    if (isNaN(qty) || qty <= 0) return;
+
     const targetCabinetId = destCabinetId || selectedTool.cabinetId;
     const targetDrawerId = destDrawerId || selectedTool.drawerId;
     const targetPosition = destPosition || selectedTool.position;
 
+    console.log("[v0] ENTRY SUBMIT - tool:", selectedTool.id, selectedTool.code, "qty:", qty, "current:", selectedTool.quantity);
+
     // Update tool quantity and optionally location
-    setTools(prev =>
-      prev.map(t =>
+    setTools(prev => {
+      const updated = prev.map(t =>
         t.id === selectedTool.id
           ? {
               ...t,
@@ -101,8 +105,11 @@ export default function EntryPage() {
               position: targetPosition,
             }
           : t
-      )
-    );
+      );
+      const found = updated.find(t => t.id === selectedTool.id);
+      console.log("[v0] ENTRY RESULT - tool after update:", found?.code, "new qty:", found?.quantity, "total qty:", updated.reduce((a, t) => a + t.quantity, 0));
+      return updated;
+    });
 
     // Register movement
     setMovements(prev => [
