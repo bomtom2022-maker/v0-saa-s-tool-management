@@ -26,6 +26,7 @@ import {
   X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useAuth } from "@/lib/auth";
 
 interface NavItem {
   name: string;
@@ -81,6 +82,7 @@ const navigation: NavItem[] = [
 
 export function Sidebar() {
   const pathname = usePathname();
+  const { user } = useAuth();
   const [expandedItems, setExpandedItems] = useState<string[]>(["Configuracao", "Operacoes"]);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [companyLogo, setCompanyLogo] = useState<string | null>(null);
@@ -232,8 +234,8 @@ export function Sidebar() {
             <Users className="h-4 w-4 text-primary" />
           </div>
           <div className="flex-1 min-w-0">
-            <p className="text-sm font-medium text-sidebar-foreground truncate">Usuario Exemplo</p>
-            <p className="text-xs text-muted-foreground">Administrador</p>
+            <p className="text-sm font-medium text-sidebar-foreground truncate">{user?.name || "Sem usuario"}</p>
+            <p className="text-xs text-muted-foreground">{user?.role || "-"}</p>
           </div>
         </div>
       </div>
