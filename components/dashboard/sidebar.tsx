@@ -120,11 +120,10 @@ export function Sidebar() {
           <Image
             src="/logo-tms-icon.png"
             alt="TMS One"
-            width={80}
-            height={80}
-            className="absolute inset-0 w-full h-full object-contain"
+            width={400}
+            height={400}
+            className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[300%] h-[300%] max-w-none object-contain"
             priority
-            loading="eager"
           />
         </div>
         <div>
@@ -257,10 +256,9 @@ export function Sidebar() {
             <Image
               src="/logo-tms-icon.png"
               alt="TMS One"
-              width={48}
-              height={48}
-              className="absolute inset-0 w-full h-full object-contain"
-              loading="eager"
+              width={200}
+              height={200}
+              className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[300%] h-[300%] max-w-none object-contain"
             />
           </div>
           <span className="text-lg font-extrabold text-foreground">TMS One</span>
