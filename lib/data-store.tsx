@@ -1,6 +1,6 @@
 "use client";
 
-import React, { createContext, useContext, useState, useMemo, useEffect, useCallback, useRef } from "react";
+import React, { createContext, useContext, useState, useMemo, useEffect, useRef } from "react";
 import {
   mockCabinets,
   mockDrawers,
@@ -45,31 +45,46 @@ const DataStoreContext = createContext<DataStore | null>(null);
 
 const STORAGE_KEY = "tms-data-store";
 
-function loadPersistedState() {
-  if (typeof window === "undefined") return null;
-  try {
-    const raw = sessionStorage.getItem(STORAGE_KEY);
-    if (raw) return JSON.parse(raw);
-  } catch {
-    // ignore
-  }
-  return null;
-}
-
 export function DataStoreProvider({ children }: { children: React.ReactNode }) {
-  const persisted = useRef(loadPersistedState());
+  const [cabinets, setCabinets] = useState<Cabinet[]>(mockCabinets);
+  const [drawers, setDrawers] = useState<Drawer[]>(mockDrawers);
+  const [tools, setTools] = useState<Tool[]>(mockTools);
+  const [movements, setMovements] = useState<Movement[]>(mockMovements);
+  const [statuses, setStatuses] = useState<ToolStatus[]>(mockStatuses);
+  const [toolTypes, setToolTypes] = useState<ToolType[]>(mockToolTypes);
+  const [users, setUsers] = useState<User[]>(mockUsers);
+  const [suppliers, setSuppliers] = useState<Supplier[]>(mockSuppliers);
 
-  const [cabinets, setCabinets] = useState<Cabinet[]>(persisted.current?.cabinets ?? mockCabinets);
-  const [drawers, setDrawers] = useState<Drawer[]>(persisted.current?.drawers ?? mockDrawers);
-  const [tools, setTools] = useState<Tool[]>(persisted.current?.tools ?? mockTools);
-  const [movements, setMovements] = useState<Movement[]>(persisted.current?.movements ?? mockMovements);
-  const [statuses, setStatuses] = useState<ToolStatus[]>(persisted.current?.statuses ?? mockStatuses);
-  const [toolTypes, setToolTypes] = useState<ToolType[]>(persisted.current?.toolTypes ?? mockToolTypes);
-  const [users, setUsers] = useState<User[]>(persisted.current?.users ?? mockUsers);
-  const [suppliers, setSuppliers] = useState<Supplier[]>(persisted.current?.suppliers ?? mockSuppliers);
+  // Load persisted data on mount (client only)
+  const hasLoaded = useRef(false);
+  useEffect(() => {
+    if (hasLoaded.current) return;
+    hasLoaded.current = true;
+    try {
+      const raw = sessionStorage.getItem(STORAGE_KEY);
+      if (raw) {
+        const data = JSON.parse(raw);
+        if (data.cabinets) setCabinets(data.cabinets);
+        if (data.drawers) setDrawers(data.drawers);
+        if (data.tools) setTools(data.tools);
+        if (data.movements) setMovements(data.movements);
+        if (data.statuses) setStatuses(data.statuses);
+        if (data.toolTypes) setToolTypes(data.toolTypes);
+        if (data.users) setUsers(data.users);
+        if (data.suppliers) setSuppliers(data.suppliers);
+      }
+    } catch {
+      // ignore
+    }
+  }, []);
 
   // Persist state to sessionStorage on every change
+  const isFirstRender = useRef(true);
   useEffect(() => {
+    if (isFirstRender.current) {
+      isFirstRender.current = false;
+      return;
+    }
     try {
       sessionStorage.setItem(
         STORAGE_KEY,
