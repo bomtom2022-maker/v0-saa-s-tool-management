@@ -1,6 +1,6 @@
 "use client";
 
-import React, { createContext, useContext, useState, useMemo } from "react";
+import React, { createContext, useContext, useState, useMemo, useEffect, useCallback, useRef } from "react";
 import {
   mockCabinets,
   mockDrawers,
@@ -39,14 +39,41 @@ interface DataStore {
 
 const DataStoreContext = createContext<DataStore | null>(null);
 
+const STORAGE_KEY = "tms-data-store";
+
+function loadPersistedState() {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = sessionStorage.getItem(STORAGE_KEY);
+    if (raw) return JSON.parse(raw);
+  } catch {
+    // ignore
+  }
+  return null;
+}
+
 export function DataStoreProvider({ children }: { children: React.ReactNode }) {
-  const [cabinets, setCabinets] = useState<Cabinet[]>(mockCabinets);
-  const [drawers, setDrawers] = useState<Drawer[]>(mockDrawers);
-  const [tools, setTools] = useState<Tool[]>(mockTools);
-  const [movements, setMovements] = useState<Movement[]>(mockMovements);
-  const [statuses, setStatuses] = useState<ToolStatus[]>(mockStatuses);
-  const [toolTypes, setToolTypes] = useState<ToolType[]>(mockToolTypes);
-  const [users, setUsers] = useState<User[]>(mockUsers);
+  const persisted = useRef(loadPersistedState());
+
+  const [cabinets, setCabinets] = useState<Cabinet[]>(persisted.current?.cabinets ?? mockCabinets);
+  const [drawers, setDrawers] = useState<Drawer[]>(persisted.current?.drawers ?? mockDrawers);
+  const [tools, setTools] = useState<Tool[]>(persisted.current?.tools ?? mockTools);
+  const [movements, setMovements] = useState<Movement[]>(persisted.current?.movements ?? mockMovements);
+  const [statuses, setStatuses] = useState<ToolStatus[]>(persisted.current?.statuses ?? mockStatuses);
+  const [toolTypes, setToolTypes] = useState<ToolType[]>(persisted.current?.toolTypes ?? mockToolTypes);
+  const [users, setUsers] = useState<User[]>(persisted.current?.users ?? mockUsers);
+
+  // Persist state to sessionStorage on every change
+  useEffect(() => {
+    try {
+      sessionStorage.setItem(
+        STORAGE_KEY,
+        JSON.stringify({ cabinets, drawers, tools, movements, statuses, toolTypes, users })
+      );
+    } catch {
+      // ignore quota errors
+    }
+  }, [cabinets, drawers, tools, movements, statuses, toolTypes, users]);
 
   const value = useMemo(
     () => ({
