@@ -1,6 +1,6 @@
 "use client";
 
-import React, { createContext, useContext, useState, useCallback, useEffect } from "react";
+import React, { createContext, useContext, useState, useCallback, useMemo } from "react";
 
 export interface Notification {
   id: string;
@@ -15,6 +15,7 @@ interface NotificationContextType {
   notifications: Notification[];
   unreadCount: number;
   addNotification: (notification: Omit<Notification, "id" | "timestamp" | "read">) => void;
+  addNotificationsBatch: (items: Omit<Notification, "id" | "timestamp" | "read">[]) => void;
   markAsRead: (id: string) => void;
   markAllAsRead: () => void;
   clearAll: () => void;
@@ -50,6 +51,20 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
     []
   );
 
+  const addNotificationsBatch = useCallback(
+    (items: Omit<Notification, "id" | "timestamp" | "read">[]) => {
+      const now = new Date();
+      const newNotifications: Notification[] = items.map((item, i) => ({
+        ...item,
+        id: `notif-${Date.now()}-${i}-${Math.random().toString(36).slice(2, 7)}`,
+        timestamp: now,
+        read: false,
+      }));
+      setNotifications((prev) => [...newNotifications, ...prev]);
+    },
+    []
+  );
+
   const markAsRead = useCallback((id: string) => {
     setNotifications((prev) =>
       prev.map((n) => (n.id === id ? { ...n, read: true } : n))
@@ -68,18 +83,22 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
     setNotifications((prev) => prev.filter((n) => n.id !== id));
   }, []);
 
+  const value = useMemo(
+    () => ({
+      notifications,
+      unreadCount,
+      addNotification,
+      addNotificationsBatch,
+      markAsRead,
+      markAllAsRead,
+      clearAll,
+      removeNotification,
+    }),
+    [notifications, unreadCount, addNotification, addNotificationsBatch, markAsRead, markAllAsRead, clearAll, removeNotification]
+  );
+
   return (
-    <NotificationContext.Provider
-      value={{
-        notifications,
-        unreadCount,
-        addNotification,
-        markAsRead,
-        markAllAsRead,
-        clearAll,
-        removeNotification,
-      }}
-    >
+    <NotificationContext.Provider value={value}>
       {children}
     </NotificationContext.Provider>
   );

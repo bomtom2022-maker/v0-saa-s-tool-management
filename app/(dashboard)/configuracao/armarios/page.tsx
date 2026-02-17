@@ -69,7 +69,7 @@ import { useNotifications } from "@/lib/notifications";
 import { useDataStore } from "@/lib/data-store";
 
 export default function CabinetsPage() {
-  const { addNotification } = useNotifications();
+  const { addNotification, addNotificationsBatch } = useNotifications();
   const { cabinets, setCabinets, drawers, setDrawers, tools, setTools, toolTypes, statuses } = useDataStore();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isToolDialogOpen, setIsToolDialogOpen] = useState(false);
@@ -111,13 +111,14 @@ export default function CabinetsPage() {
     if (hasCheckedRef.current) return;
     hasCheckedRef.current = true;
     const now = new Date();
+    const batch: { type: "reform_overdue" | "low_stock"; title: string; message: string }[] = [];
     for (const tool of tools) {
       if (tool.reformDate) {
         const reformDate = new Date(tool.reformDate);
         if (reformDate < now) {
           const cab = cabinets.find((c) => c.id === tool.cabinetId);
           const days = Math.floor((now.getTime() - reformDate.getTime()) / 86400000);
-          addNotification({
+          batch.push({
             type: "reform_overdue",
             title: "Reforma atrasada!",
             message: `${tool.code} - ${tool.description} esta com reforma atrasada ha ${days} dia(s). Armario: ${cab?.name || "N/A"}. Prevista: ${reformDate.toLocaleDateString("pt-BR")}`,
@@ -126,12 +127,15 @@ export default function CabinetsPage() {
       }
       if (tool.quantity <= tool.minStock) {
         const cab = cabinets.find((c) => c.id === tool.cabinetId);
-        addNotification({
+        batch.push({
           type: "low_stock",
           title: "Estoque baixo",
           message: `${tool.code} - ${tool.description} com apenas ${tool.quantity} un. (min: ${tool.minStock}). Armario: ${cab?.name || "N/A"}`,
         });
       }
+    }
+    if (batch.length > 0) {
+      addNotificationsBatch(batch);
     }
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 

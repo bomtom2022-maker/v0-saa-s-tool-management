@@ -1,6 +1,6 @@
 "use client";
 
-import React, { createContext, useContext, useState, useCallback } from "react";
+import React, { createContext, useContext, useState, useMemo } from "react";
 import {
   mockCabinets,
   mockDrawers,
@@ -48,26 +48,29 @@ export function DataStoreProvider({ children }: { children: React.ReactNode }) {
   const [toolTypes, setToolTypes] = useState<ToolType[]>(mockToolTypes);
   const [users, setUsers] = useState<User[]>(mockUsers);
 
+  const value = useMemo(
+    () => ({
+      cabinets,
+      setCabinets,
+      drawers,
+      setDrawers,
+      tools,
+      setTools,
+      movements,
+      setMovements,
+      statuses,
+      setStatuses,
+      toolTypes,
+      setToolTypes,
+      users,
+      setUsers,
+      profiles: mockProfiles,
+    }),
+    [cabinets, drawers, tools, movements, statuses, toolTypes, users]
+  );
+
   return (
-    <DataStoreContext.Provider
-      value={{
-        cabinets,
-        setCabinets,
-        drawers,
-        setDrawers,
-        tools,
-        setTools,
-        movements,
-        setMovements,
-        statuses,
-        setStatuses,
-        toolTypes,
-        setToolTypes,
-        users,
-        setUsers,
-        profiles: mockProfiles,
-      }}
-    >
+    <DataStoreContext.Provider value={value}>
       {children}
     </DataStoreContext.Provider>
   );

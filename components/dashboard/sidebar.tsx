@@ -112,7 +112,7 @@ export function Sidebar() {
 
   const closeMobile = () => setIsMobileMenuOpen(false);
 
-  const SidebarContent = () => (
+  const sidebarContent = (
     <div className="flex h-full flex-col">
       {/* Logo */}
       <div className="flex h-20 items-center gap-1 border-b border-sidebar-border px-2">
@@ -292,12 +292,12 @@ export function Sidebar() {
         >
           <X className="h-5 w-5" />
         </button>
-        <SidebarContent />
+        {sidebarContent}
       </aside>
 
       {/* Desktop sidebar */}
       <aside className="hidden md:fixed md:inset-y-0 md:left-0 md:z-40 md:flex md:w-72 md:flex-col bg-sidebar border-r border-sidebar-border">
-        <SidebarContent />
+        {sidebarContent}
       </aside>
     </>
   );
