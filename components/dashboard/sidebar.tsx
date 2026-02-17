@@ -1,15 +1,14 @@
 "use client";
 
-import React from "react"
+import React from "react";
 
-import { useState } from "react";
+import { useState, useCallback, useRef } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 import Image from "next/image";
 import {
   LayoutDashboard,
-  Archive,
   Settings,
   Package,
   ArrowRightLeft,
@@ -18,30 +17,34 @@ import {
   Users,
   ChevronDown,
   ChevronRight,
-  Wrench,
-  Tags,
-  ToggleLeft,
   Building2,
   Menu,
   X,
+  GripVertical,
+  ArrowUp,
+  ArrowDown,
+  Settings2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/lib/auth";
 
 interface NavItem {
+  id: string;
   name: string;
   href: string;
   icon: React.ReactNode;
   children?: { name: string; href: string }[];
 }
 
-const navigation: NavItem[] = [
+const defaultNavigation: NavItem[] = [
   {
+    id: "dashboard",
     name: "Dashboard",
     href: "/",
     icon: <LayoutDashboard className="h-5 w-5" />,
   },
   {
+    id: "configuracao",
     name: "Configuracao",
     href: "/configuracao",
     icon: <Settings className="h-5 w-5" />,
@@ -53,11 +56,13 @@ const navigation: NavItem[] = [
     ],
   },
   {
+    id: "catalogo",
     name: "Catalogo",
     href: "/catalogo",
     icon: <Package className="h-5 w-5" />,
   },
   {
+    id: "operacoes",
     name: "Operacoes",
     href: "/operacoes",
     icon: <ArrowRightLeft className="h-5 w-5" />,
@@ -69,16 +74,56 @@ const navigation: NavItem[] = [
     ],
   },
   {
+    id: "historico",
     name: "Historico",
     href: "/historico",
     icon: <History className="h-5 w-5" />,
   },
   {
+    id: "relatorios",
     name: "Relatorios",
     href: "/relatorios",
     icon: <FileText className="h-5 w-5" />,
   },
 ];
+
+function getStoredOrder(): string[] | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const stored = localStorage.getItem("tms-sidebar-order");
+    if (stored) return JSON.parse(stored);
+  } catch {
+    // ignore
+  }
+  return null;
+}
+
+function saveOrder(order: string[]) {
+  if (typeof window === "undefined") return;
+  try {
+    localStorage.setItem("tms-sidebar-order", JSON.stringify(order));
+  } catch {
+    // ignore
+  }
+}
+
+function getOrderedNavigation(items: NavItem[], order: string[] | null): NavItem[] {
+  if (!order) return items;
+  const mapped = new Map(items.map((item) => [item.id, item]));
+  const ordered: NavItem[] = [];
+  for (const id of order) {
+    const item = mapped.get(id);
+    if (item) {
+      ordered.push(item);
+      mapped.delete(id);
+    }
+  }
+  // Add any items not in the stored order at the end
+  for (const item of mapped.values()) {
+    ordered.push(item);
+  }
+  return ordered;
+}
 
 export function Sidebar() {
   const pathname = usePathname();
@@ -86,7 +131,12 @@ export function Sidebar() {
   const [expandedItems, setExpandedItems] = useState<string[]>(["Configuracao", "Operacoes"]);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [companyLogo, setCompanyLogo] = useState<string | null>(null);
-  const companyLogoRef = React.useRef<HTMLInputElement>(null);
+  const companyLogoRef = useRef<HTMLInputElement>(null);
+  const [isReorderMode, setIsReorderMode] = useState(false);
+
+  const [navItems, setNavItems] = useState<NavItem[]>(() =>
+    getOrderedNavigation(defaultNavigation, getStoredOrder())
+  );
 
   const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -113,6 +163,152 @@ export function Sidebar() {
   };
 
   const closeMobile = () => setIsMobileMenuOpen(false);
+
+  const moveItem = useCallback((index: number, direction: "up" | "down") => {
+    setNavItems((prev) => {
+      const newItems = [...prev];
+      const targetIndex = direction === "up" ? index - 1 : index + 1;
+      if (targetIndex < 0 || targetIndex >= newItems.length) return prev;
+      [newItems[index], newItems[targetIndex]] = [newItems[targetIndex], newItems[index]];
+      saveOrder(newItems.map((item) => item.id));
+      return newItems;
+    });
+  }, []);
+
+  // --- Drag and Drop ---
+  const dragItemRef = useRef<number | null>(null);
+  const dragOverRef = useRef<number | null>(null);
+
+  const handleDragStart = useCallback((index: number) => {
+    dragItemRef.current = index;
+  }, []);
+
+  const handleDragOver = useCallback((e: React.DragEvent, index: number) => {
+    e.preventDefault();
+    dragOverRef.current = index;
+  }, []);
+
+  const handleDrop = useCallback(() => {
+    if (dragItemRef.current === null || dragOverRef.current === null) return;
+    if (dragItemRef.current === dragOverRef.current) return;
+
+    setNavItems((prev) => {
+      const newItems = [...prev];
+      const draggedItem = newItems.splice(dragItemRef.current!, 1)[0];
+      newItems.splice(dragOverRef.current!, 0, draggedItem);
+      saveOrder(newItems.map((item) => item.id));
+      return newItems;
+    });
+
+    dragItemRef.current = null;
+    dragOverRef.current = null;
+  }, []);
+
+  const renderNavItem = (item: NavItem, index: number) => {
+    const itemContent = item.children ? (
+      <>
+        <button
+          type="button"
+          onClick={() => !isReorderMode && toggleExpanded(item.name)}
+          className={cn(
+            "flex w-full items-center gap-3 rounded-lg px-3 py-3 text-sm font-medium transition-colors active:bg-sidebar-accent/80",
+            isActive(item.href)
+              ? "bg-sidebar-accent text-sidebar-accent-foreground"
+              : "text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-foreground",
+            isReorderMode && "pointer-events-none opacity-80"
+          )}
+        >
+          {item.icon}
+          <span className="flex-1 text-left">{item.name}</span>
+          {!isReorderMode && (
+            expandedItems.includes(item.name) ? (
+              <ChevronDown className="h-4 w-4" />
+            ) : (
+              <ChevronRight className="h-4 w-4" />
+            )
+          )}
+        </button>
+        {!isReorderMode && expandedItems.includes(item.name) && (
+          <div className="ml-4 mt-1 space-y-0.5 border-l border-sidebar-border pl-4">
+            {item.children.map((child) => (
+              <Link
+                key={child.href}
+                href={child.href}
+                onClick={closeMobile}
+                className={cn(
+                  "block rounded-lg px-3 py-2.5 text-sm transition-colors active:bg-primary/20",
+                  pathname === child.href
+                    ? "bg-primary/10 text-primary font-medium"
+                    : "text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-foreground"
+                )}
+              >
+                {child.name}
+              </Link>
+            ))}
+          </div>
+        )}
+      </>
+    ) : (
+      <Link
+        href={isReorderMode ? "#" : item.href}
+        onClick={(e) => {
+          if (isReorderMode) {
+            e.preventDefault();
+            return;
+          }
+          closeMobile();
+        }}
+        className={cn(
+          "flex items-center gap-3 rounded-lg px-3 py-3 text-sm font-medium transition-colors active:bg-sidebar-accent/80",
+          isActive(item.href)
+            ? "bg-sidebar-accent text-sidebar-accent-foreground"
+            : "text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-foreground",
+          isReorderMode && "opacity-80"
+        )}
+      >
+        {item.icon}
+        {item.name}
+      </Link>
+    );
+
+    if (isReorderMode) {
+      return (
+        <div
+          key={item.id}
+          draggable
+          onDragStart={() => handleDragStart(index)}
+          onDragOver={(e) => handleDragOver(e, index)}
+          onDrop={handleDrop}
+          className="group flex items-center gap-1 rounded-lg border border-dashed border-sidebar-border/60 hover:border-primary/50 transition-colors cursor-grab active:cursor-grabbing"
+        >
+          <div className="flex flex-col items-center gap-0.5 pl-1.5 py-1">
+            <button
+              type="button"
+              onClick={() => moveItem(index, "up")}
+              disabled={index === 0}
+              className="p-0.5 rounded text-muted-foreground hover:text-foreground disabled:opacity-20 disabled:cursor-not-allowed transition-colors"
+              aria-label={`Mover ${item.name} para cima`}
+            >
+              <ArrowUp className="h-3.5 w-3.5" />
+            </button>
+            <GripVertical className="h-4 w-4 text-muted-foreground/60" />
+            <button
+              type="button"
+              onClick={() => moveItem(index, "down")}
+              disabled={index === navItems.length - 1}
+              className="p-0.5 rounded text-muted-foreground hover:text-foreground disabled:opacity-20 disabled:cursor-not-allowed transition-colors"
+              aria-label={`Mover ${item.name} para baixo`}
+            >
+              <ArrowDown className="h-3.5 w-3.5" />
+            </button>
+          </div>
+          <div className="flex-1 min-w-0">{itemContent}</div>
+        </div>
+      );
+    }
+
+    return <div key={item.id}>{itemContent}</div>;
+  };
 
   const sidebarContent = (
     <div className="flex h-full flex-col">
@@ -164,67 +360,39 @@ export function Sidebar() {
         </button>
       </div>
 
+      {/* Reorder Toggle */}
+      <div className="px-3 pt-3 pb-1 flex items-center justify-between">
+        <span className="text-[11px] uppercase tracking-wider text-muted-foreground/70 font-medium">
+          Navegacao
+        </span>
+        <button
+          type="button"
+          onClick={() => setIsReorderMode(!isReorderMode)}
+          className={cn(
+            "flex items-center gap-1 px-2 py-1 rounded text-[11px] font-medium transition-colors",
+            isReorderMode
+              ? "bg-primary/20 text-primary"
+              : "text-muted-foreground/60 hover:text-muted-foreground hover:bg-sidebar-accent"
+          )}
+          title={isReorderMode ? "Concluir reordenacao" : "Reordenar abas"}
+        >
+          {isReorderMode ? (
+            <>
+              <Settings2 className="h-3 w-3" />
+              Concluir
+            </>
+          ) : (
+            <>
+              <Settings2 className="h-3 w-3" />
+              Ordenar
+            </>
+          )}
+        </button>
+      </div>
+
       {/* Navigation */}
-      <nav className="flex-1 space-y-1 overflow-y-auto p-3">
-        {navigation.map((item) => (
-          <div key={item.name}>
-            {item.children ? (
-              <>
-                <button
-                  type="button"
-                  onClick={() => toggleExpanded(item.name)}
-                  className={cn(
-                    "flex w-full items-center gap-3 rounded-lg px-3 py-3 text-sm font-medium transition-colors active:bg-sidebar-accent/80",
-                    isActive(item.href)
-                      ? "bg-sidebar-accent text-sidebar-accent-foreground"
-                      : "text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-foreground"
-                  )}
-                >
-                  {item.icon}
-                  <span className="flex-1 text-left">{item.name}</span>
-                  {expandedItems.includes(item.name) ? (
-                    <ChevronDown className="h-4 w-4" />
-                  ) : (
-                    <ChevronRight className="h-4 w-4" />
-                  )}
-                </button>
-                {expandedItems.includes(item.name) && (
-                  <div className="ml-4 mt-1 space-y-0.5 border-l border-sidebar-border pl-4">
-                    {item.children.map((child) => (
-                      <Link
-                        key={child.href}
-                        href={child.href}
-                        onClick={closeMobile}
-                        className={cn(
-                          "block rounded-lg px-3 py-2.5 text-sm transition-colors active:bg-primary/20",
-                          pathname === child.href
-                            ? "bg-primary/10 text-primary font-medium"
-                            : "text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-foreground"
-                        )}
-                      >
-                        {child.name}
-                      </Link>
-                    ))}
-                  </div>
-                )}
-              </>
-            ) : (
-              <Link
-                href={item.href}
-                onClick={closeMobile}
-                className={cn(
-                  "flex items-center gap-3 rounded-lg px-3 py-3 text-sm font-medium transition-colors active:bg-sidebar-accent/80",
-                  isActive(item.href)
-                    ? "bg-sidebar-accent text-sidebar-accent-foreground"
-                    : "text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-foreground"
-                )}
-              >
-                {item.icon}
-                {item.name}
-              </Link>
-            )}
-          </div>
-        ))}
+      <nav className="flex-1 space-y-1 overflow-y-auto px-3 pb-3">
+        {navItems.map((item, index) => renderNavItem(item, index))}
       </nav>
 
       {/* Footer */}
@@ -272,7 +440,7 @@ export function Sidebar() {
         <div
           className="fixed inset-0 z-[60] bg-background/80 backdrop-blur-sm md:hidden"
           onClick={closeMobile}
-          onKeyDown={(e) => { if (e.key === 'Escape') closeMobile(); }}
+          onKeyDown={(e) => { if (e.key === "Escape") closeMobile(); }}
           role="button"
           tabIndex={0}
           aria-label="Fechar menu"
@@ -286,7 +454,6 @@ export function Sidebar() {
           isMobileMenuOpen ? "translate-x-0" : "-translate-x-full"
         )}
       >
-        {/* Close button inside sidebar */}
         <button
           type="button"
           onClick={closeMobile}

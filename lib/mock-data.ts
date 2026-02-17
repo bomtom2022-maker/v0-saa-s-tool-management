@@ -121,9 +121,6 @@ export const mockStatuses: ToolStatus[] = [
 // Placeholder users
 export const mockUsers: User[] = [
   { id: 'eng-processo-1', name: 'Engenharia de Processo', email: 'engenharia.processo@empresa.com', role: 'Administrador', isActive: true },
-  { id: '2', name: 'Engenheiro Processo', email: 'engenharia@exemplo.com', role: 'Engenharia', isActive: true },
-  { id: '3', name: 'Comprador', email: 'compras@exemplo.com', role: 'Compras', isActive: true },
-  { id: '4', name: 'Operador CNC', email: 'operador@exemplo.com', role: 'Consulta', isActive: true },
 ];
 
 // Placeholder tools
@@ -158,7 +155,4 @@ export const mockMovements: Movement[] = [
 // Permission profiles
 export const mockProfiles = [
   { id: '1', name: 'Administrador', permissions: ['all', 'view', 'edit_tools', 'edit_cabinets', 'edit_types', 'move_stock', 'invoices', 'reform', 'reports', 'manage_users'] },
-  { id: '2', name: 'Engenharia', permissions: ['view', 'edit_tools', 'edit_cabinets', 'edit_types', 'move_stock', 'reform', 'reports'] },
-  { id: '3', name: 'Compras', permissions: ['view', 'invoices', 'reports'] },
-  { id: '4', name: 'Consulta', permissions: ['view'] },
 ];
