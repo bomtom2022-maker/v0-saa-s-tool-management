@@ -1012,18 +1012,6 @@ export default function CabinetsPage() {
                         </div>
                       </div>
                       <div className="grid gap-2">
-                        <Label htmlFor="reformDate">Data de Reforma</Label>
-                        <Input
-                          id="reformDate"
-                          name="reformDate"
-                          type="date"
-                          defaultValue={editingTool?.reformDate || ""}
-                        />
-                        <p className="text-xs text-muted-foreground">
-                          Quando a ferramenta precisa ser reformada. Voce sera notificado se atrasar.
-                        </p>
-                      </div>
-                      <div className="grid gap-2">
                         <Label htmlFor="notes">Observacoes</Label>
                         <Textarea
                           id="notes"
