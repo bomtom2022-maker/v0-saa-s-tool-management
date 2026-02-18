@@ -282,7 +282,12 @@ export default function EntryPage() {
                               <Package className="h-5 w-5 text-muted-foreground" />
                             </div>
                             <div>
-                              <p className="font-mono font-medium">{tool.code}</p>
+                              <div className="flex items-center gap-2">
+                                <p className="font-mono font-medium">{tool.code}</p>
+                                {tool.unitValue != null && tool.unitValue > 0 && (
+                                  <span className="text-[11px] text-muted-foreground">R$ {tool.unitValue.toFixed(2)}</span>
+                                )}
+                              </div>
                               <p className="text-sm text-muted-foreground truncate max-w-[200px]">
                                 {tool.description}
                               </p>
@@ -320,7 +325,12 @@ export default function EntryPage() {
                             <Package className="h-6 w-6 text-primary" />
                           </div>
                           <div>
-                            <p className="font-mono font-bold">{selectedTool.code}</p>
+                            <div className="flex items-center gap-2">
+                              <p className="font-mono font-bold">{selectedTool.code}</p>
+                              {selectedTool.unitValue != null && selectedTool.unitValue > 0 && (
+                                <span className="text-[11px] text-muted-foreground">R$ {selectedTool.unitValue.toFixed(2)}/un</span>
+                              )}
+                            </div>
                             <p className="text-sm text-muted-foreground">{selectedTool.description}</p>
                           </div>
                         </div>

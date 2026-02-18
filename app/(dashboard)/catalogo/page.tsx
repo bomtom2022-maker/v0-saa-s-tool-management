@@ -403,7 +403,14 @@ export default function CatalogPage() {
                       const status = getStatusInfo(tool.statusId);
                       return (
                         <TableRow key={tool.id} className="hover:bg-secondary/30">
-                          <TableCell className="font-mono font-medium">{tool.code}</TableCell>
+                          <TableCell>
+                            <div className="flex items-center gap-2">
+                              <span className="font-mono font-medium">{tool.code}</span>
+                              {tool.unitValue != null && tool.unitValue > 0 && (
+                                <span className="text-[11px] text-muted-foreground">R$ {tool.unitValue.toFixed(2)}</span>
+                              )}
+                            </div>
+                          </TableCell>
                           <TableCell className="max-w-[200px] truncate">{tool.description}</TableCell>
                           <TableCell>
                             <Badge variant="secondary">{getTypeName(tool.typeId)}</Badge>
