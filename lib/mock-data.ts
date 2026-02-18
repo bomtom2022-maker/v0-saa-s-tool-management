@@ -84,6 +84,7 @@ export interface Movement {
   notes: string;
   invoiceNumber?: string;
   supplier?: string;
+  estimatedReturn?: string; // ISO date - estimated return from reform
 }
 
 // Placeholder cabinets

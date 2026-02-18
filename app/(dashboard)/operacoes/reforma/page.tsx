@@ -25,6 +25,7 @@ import {
   Clock,
   FileText,
   Send,
+  Calendar,
 } from "lucide-react";
 import { type Tool } from "@/lib/mock-data";
 import { useDataStore } from "@/lib/data-store";
@@ -36,6 +37,7 @@ export default function ReformaPage() {
   const [quantity, setQuantity] = useState("");
   const [notaNumber, setNotaNumber] = useState("");
   const [selectedSupplierId, setSelectedSupplierId] = useState("");
+  const [estimatedReturn, setEstimatedReturn] = useState("");
   const [notes, setNotes] = useState("");
   const [filterCabinetId, setFilterCabinetId] = useState("all");
   const [success, setSuccess] = useState(false);
@@ -112,6 +114,7 @@ export default function ReformaPage() {
         notes: movementNotes || "Enviado para reforma",
         invoiceNumber: notaNumber || undefined,
         supplier: supplierName || undefined,
+        estimatedReturn: estimatedReturn || undefined,
       },
       ...prev,
     ]);
@@ -125,6 +128,7 @@ export default function ReformaPage() {
     setQuantity("");
     setNotaNumber("");
     setSelectedSupplierId("");
+    setEstimatedReturn("");
     setNotes("");
     setSearchTerm("");
   };
@@ -350,6 +354,24 @@ export default function ReformaPage() {
                   </Select>
                   <p className="text-xs text-muted-foreground">
                     {"Cadastre novos em Configuracao > Fornecedores"}
+                  </p>
+                </div>
+
+                {/* Estimated Return Date */}
+                <div className="grid gap-2">
+                  <Label htmlFor="estimatedReturn" className="flex items-center gap-2">
+                    <Calendar className="h-4 w-4 text-muted-foreground" />
+                    Data Estimada de Retorno
+                  </Label>
+                  <Input
+                    id="estimatedReturn"
+                    type="date"
+                    value={estimatedReturn}
+                    onChange={(e) => setEstimatedReturn(e.target.value)}
+                    disabled={!selectedTool}
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Opcional. Previsao de quando a ferramenta retorna da reforma. Usado para controle de atrasos.
                   </p>
                 </div>
 
