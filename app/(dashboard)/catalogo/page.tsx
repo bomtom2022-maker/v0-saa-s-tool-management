@@ -66,6 +66,7 @@ import {
 import { type Tool } from "@/lib/mock-data";
 import { useDataStore } from "@/lib/data-store";
 import { PriceTag } from "@/components/dashboard/price-tag";
+import { ToolCodeDisplay } from "@/components/dashboard/tool-code-display";
 
 export default function CatalogPage() {
   const { tools, setTools, toolTypes, statuses, cabinets } = useDataStore();
@@ -406,7 +407,7 @@ export default function CatalogPage() {
                         <TableRow key={tool.id} className="hover:bg-secondary/30">
                           <TableCell>
                             <div className="flex flex-wrap items-center gap-1.5">
-                              <span className="font-mono font-medium">{tool.code}</span>
+                              <ToolCodeDisplay code={tool.code} className="font-medium" />
                               <PriceTag value={tool.unitValue} />
                             </div>
                           </TableCell>
@@ -489,7 +490,7 @@ export default function CatalogPage() {
                       <Package className="h-6 w-6 text-primary" />
                     </div>
                     <div>
-                      <p className="font-mono text-lg font-bold">{selectedTool.code}</p>
+                      <ToolCodeDisplay code={selectedTool.code} className="text-lg font-bold" />
                       <p className="text-sm text-muted-foreground">{selectedTool.description}</p>
                     </div>
                   </div>

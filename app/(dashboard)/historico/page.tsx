@@ -39,6 +39,7 @@ import {
 } from "lucide-react";
 import { type Movement } from "@/lib/mock-data";
 import { useDataStore } from "@/lib/data-store";
+import { ToolCodeDisplay } from "@/components/dashboard/tool-code-display";
 
 // Extended mock movements for history display
 const extraMovements: Movement[] = [
@@ -283,7 +284,7 @@ export default function HistoryPage() {
                             <div className="flex items-center gap-2">
                               <Package className="h-4 w-4 text-muted-foreground" />
                               <div>
-                                <p className="font-mono text-sm font-medium">{tool?.code}</p>
+                                {tool?.code ? <ToolCodeDisplay code={tool.code} className="text-sm font-medium" /> : <span className="font-mono text-sm">N/A</span>}
                                 <p className="text-xs text-muted-foreground truncate max-w-[150px]">
                                   {tool?.description}
                                 </p>

@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import { useDataStore } from "@/lib/data-store";
 import { PriceTag } from "@/components/dashboard/price-tag";
+import { ToolCodeDisplay } from "@/components/dashboard/tool-code-display";
 
 export default function DashboardPage() {
   const { cabinets, tools, movements, statuses } = useDataStore();
@@ -117,7 +118,7 @@ export default function DashboardPage() {
                         <div>
                           <div className="flex flex-wrap items-center gap-1.5">
                             <p className="text-sm font-medium text-foreground">
-                              {tool?.code || "Ferramenta"} - {tool?.description || "Descricao"}
+                              {tool?.code ? <ToolCodeDisplay code={tool.code} className="font-medium" /> : "Ferramenta"}{" - "}{tool?.description || "Descricao"}
                             </p>
                             <PriceTag value={tool?.unitValue} />
                           </div>

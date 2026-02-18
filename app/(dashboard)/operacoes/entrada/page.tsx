@@ -36,6 +36,7 @@ import {
 import { type Tool } from "@/lib/mock-data";
 import { useDataStore } from "@/lib/data-store";
 import { PriceTag } from "@/components/dashboard/price-tag";
+import { ToolCodeDisplay } from "@/components/dashboard/tool-code-display";
 
 export default function EntryPage() {
   const { tools, setTools, cabinets, drawers, toolTypes, movements, setMovements } = useDataStore();
@@ -123,6 +124,10 @@ export default function EntryPage() {
   const totalPendingReform = selectedTool ? getTotalPendingReform(selectedTool.id) : 0;
   const selectedReform = pendingReforms.find(r => r.id === selectedReformId) || null;
 
+  // Get reform-only cabinets
+  const reformCabinets = cabinets.filter(c => c.isReformOnly);
+  const normalCabinets = cabinets.filter(c => !c.isReformOnly);
+
   // Handle existing tool entry
   const handleExistingEntry = (e: React.FormEvent) => {
     e.preventDefault();
@@ -131,26 +136,34 @@ export default function EntryPage() {
     const qty = Number(quantity);
     if (isNaN(qty) || qty <= 0) return;
 
+    const isReformReturn = !!selectedReform;
     const targetCabinetId = destCabinetId || selectedTool.cabinetId;
     const targetDrawerId = destDrawerId || selectedTool.drawerId;
     const targetPosition = destPosition || selectedTool.position;
 
-    // Update tool quantity and optionally location
+    // If reform return: add "R" suffix to code, move to reform cabinet, increment reformCount
+    const newCode = isReformReturn ? selectedTool.code + "R" : selectedTool.code;
+    const newReformCount = isReformReturn ? (selectedTool.reformCount || 0) + 1 : (selectedTool.reformCount || 0);
+
+    // Update tool quantity, code (if reform), and location
     setTools(prev =>
       prev.map(t =>
         t.id === selectedTool.id
           ? {
               ...t,
+              code: newCode,
               quantity: t.quantity + qty,
               cabinetId: targetCabinetId,
               drawerId: targetDrawerId,
               position: targetPosition,
+              reformCount: newReformCount,
             }
           : t
       )
     );
 
     const entryNotes = [
+      isReformReturn ? `Retorno de reforma - Codigo: ${selectedTool.code} -> ${newCode}` : null,
       invoiceNumber ? `NF: ${invoiceNumber}` : null,
       notes || null,
     ].filter(Boolean).join(" | ") || `Entrada de ${qty} un. de ${selectedTool.code}`;
@@ -160,7 +173,7 @@ export default function EntryPage() {
       const newMovements = [
         {
           id: `mov-${Date.now()}`,
-          type: "entry" as const,
+          type: isReformReturn ? "reform_return" as const : "entry" as const,
           toolId: selectedTool.id,
           userId: "eng-processo-1",
           quantity: qty,
@@ -171,7 +184,7 @@ export default function EntryPage() {
         ...prev,
       ];
 
-      // If a specific reform was selected, register reform_return (baixa)
+      // If a specific reform was selected, register an additional reform_return (baixa) movement
       if (selectedReform) {
         const returnQty = Math.min(qty, selectedReform.remaining);
         const nfRetorno = invoiceNumber || selectedReform.invoiceNumber || "";
@@ -182,7 +195,7 @@ export default function EntryPage() {
           userId: "eng-processo-1",
           quantity: returnQty,
           date: new Date().toISOString(),
-          notes: `Retorno de reforma - NF retorno: ${nfRetorno || "N/A"} | NF envio: ${selectedReform.invoiceNumber || "N/A"}${selectedReform.supplier ? ` | Fornecedor: ${selectedReform.supplier}` : ""}`,
+          notes: `Baixa reforma - ${selectedTool.code} -> ${newCode} | NF retorno: ${nfRetorno || "N/A"} | NF envio: ${selectedReform.invoiceNumber || "N/A"}${selectedReform.supplier ? ` | Fornecedor: ${selectedReform.supplier}` : ""} | Destino: ${getCabinetName(targetCabinetId)}`,
           invoiceNumber: nfRetorno || undefined,
         });
       }
@@ -191,11 +204,11 @@ export default function EntryPage() {
     });
 
     const reformMsg = selectedReform
-      ? ` | Baixa na reforma NF ${selectedReform.invoiceNumber || "s/n"}: ${Math.min(qty, selectedReform.remaining)} un.`
+      ? ` | Retorno reforma: ${selectedTool.code} -> ${newCode} | Destino: ${getCabinetName(targetCabinetId)}`
       : "";
 
     showSuccess(
-      `Entrada registrada: +${qty} un. de ${selectedTool.code} no ${getCabinetName(targetCabinetId)}${invoiceNumber ? ` | NF: ${invoiceNumber}` : ""}${reformMsg}`
+      `Entrada registrada: +${qty} un. de ${newCode} no ${getCabinetName(targetCabinetId)}${invoiceNumber ? ` | NF: ${invoiceNumber}` : ""}${reformMsg}`
     );
     setSelectedTool(null);
     setSelectedReformId(null);
@@ -398,7 +411,7 @@ export default function EntryPage() {
                               </div>
                               <div>
                                 <div className="flex flex-wrap items-center gap-1.5">
-                                  <p className="font-mono font-medium">{tool.code}</p>
+                                  <ToolCodeDisplay code={tool.code} className="font-medium" />
                                   <PriceTag value={tool.unitValue} />
                                 </div>
                                 <p className="text-sm text-muted-foreground truncate max-w-[200px]">
@@ -450,7 +463,7 @@ export default function EntryPage() {
                           </div>
                           <div>
                             <div className="flex flex-wrap items-center gap-1.5">
-                              <p className="font-mono font-bold">{selectedTool.code}</p>
+                              <ToolCodeDisplay code={selectedTool.code} className="font-bold" />
                               <PriceTag value={selectedTool.unitValue} suffix="/un" />
                             </div>
                             <p className="text-sm text-muted-foreground">{selectedTool.description}</p>
@@ -484,13 +497,26 @@ export default function EntryPage() {
                                   <div
                                     key={reform.id}
                                     onClick={() => {
-                                      if (isSelected) {
-                                        setSelectedReformId(null);
-                                        setInvoiceNumber("");
-                                      } else {
-                                        setSelectedReformId(reform.id);
-                                        setInvoiceNumber(reform.invoiceNumber || "");
-                                      }
+                    if (isSelected) {
+                      setSelectedReformId(null);
+                      setInvoiceNumber("");
+                      // Reset cabinet to tool's original cabinet
+                      if (selectedTool) {
+                        setDestCabinetId(selectedTool.cabinetId);
+                        setDestDrawerId(selectedTool.drawerId);
+                        setDestPosition(selectedTool.position);
+                      }
+                    } else {
+                      setSelectedReformId(reform.id);
+                      setInvoiceNumber(reform.invoiceNumber || "");
+                      // Auto-select first reform cabinet (A-R)
+                      const firstReformCabinet = reformCabinets[0];
+                      if (firstReformCabinet) {
+                        setDestCabinetId(firstReformCabinet.id);
+                        setDestDrawerId("");
+                        setDestPosition("");
+                      }
+                    }
                                     }}
                                     className={`p-2.5 rounded-lg border cursor-pointer transition-colors text-xs ${
                                       isSelected
@@ -535,6 +561,21 @@ export default function EntryPage() {
                       </div>
                     )}
 
+                    {/* Reform code change preview */}
+                    {selectedTool && selectedReform && (
+                      <div className="p-3 rounded-lg bg-sky-500/10 border border-sky-500/20">
+                        <p className="text-xs font-medium text-sky-400 mb-2">Transformacao do Codigo ao Retornar</p>
+                        <div className="flex items-center gap-3 font-mono">
+                          <span className="text-sm text-muted-foreground">{selectedTool.code}</span>
+                          <span className="text-muted-foreground">{"-->"}</span>
+                          <ToolCodeDisplay code={selectedTool.code + "R"} className="text-sm font-bold" />
+                        </div>
+                        <p className="text-[11px] text-muted-foreground mt-1.5">
+                          O codigo da ferramenta recebera o sufixo "R" e sera movida para o armario de ferramentas reformadas.
+                        </p>
+                      </div>
+                    )}
+
                     {/* Invoice Number */}
                     <div className="grid gap-2">
                       <Label htmlFor="invoiceNumber" className="flex items-center gap-2">
@@ -576,7 +617,14 @@ export default function EntryPage() {
                     </div>
 
                     <div className="grid gap-2">
-                      <Label>Armario de Destino *</Label>
+                      <Label className="flex items-center gap-2">
+                        Armario de Destino *
+                        {selectedReform && (
+                          <Badge className="bg-sky-500/20 text-sky-400 border-sky-500/30 text-[10px]">
+                            Somente armarios de reforma
+                          </Badge>
+                        )}
+                      </Label>
                       <Select
                         value={destCabinetId}
                         onValueChange={(v) => {
@@ -590,11 +638,19 @@ export default function EntryPage() {
                           <SelectValue placeholder="Selecione o armario" />
                         </SelectTrigger>
                         <SelectContent>
-                          {cabinets.map((c) => (
-                            <SelectItem key={c.id} value={c.id}>{c.name} - {c.location}</SelectItem>
+                          {(selectedReform ? reformCabinets : normalCabinets).map((c) => (
+                            <SelectItem key={c.id} value={c.id}>
+                              {c.name} - {c.location}
+                              {c.isReformOnly ? " (Reformadas)" : ""}
+                            </SelectItem>
                           ))}
                         </SelectContent>
                       </Select>
+                      {selectedReform && (
+                        <p className="text-xs text-sky-400">
+                          Ferramentas retornando de reforma devem ser armazenadas nos armarios A-R ou B-R.
+                        </p>
+                      )}
                     </div>
 
                     {destCabinetId && destDrawersForCabinet.length > 0 && (
@@ -643,11 +699,22 @@ export default function EntryPage() {
                       />
                     </div>
 
-                    <Button type="submit" className="w-full" disabled={!selectedTool || !quantity || !destCabinetId}>
-                      <Plus className="mr-2 h-4 w-4" />
-                      {selectedReform
-                        ? `Registrar Entrada e Baixa (NF ${selectedReform.invoiceNumber || "s/n"})`
-                        : "Registrar Entrada"}
+                    <Button
+                      type="submit"
+                      className={`w-full ${selectedReform ? "bg-sky-600 hover:bg-sky-700 text-white" : ""}`}
+                      disabled={!selectedTool || !quantity || !destCabinetId}
+                    >
+                      {selectedReform ? (
+                        <>
+                          <Wrench className="mr-2 h-4 w-4" />
+                          {`Registrar Retorno de Reforma (${selectedTool?.code} -> ${selectedTool?.code}R)`}
+                        </>
+                      ) : (
+                        <>
+                          <Plus className="mr-2 h-4 w-4" />
+                          Registrar Entrada
+                        </>
+                      )}
                     </Button>
                   </form>
                 </CardContent>
@@ -717,7 +784,7 @@ export default function EntryPage() {
                             </div>
                             <div>
                               <div className="flex flex-wrap items-center gap-1.5">
-                                <p className="font-mono font-medium text-sm">{tool.code}</p>
+                                <ToolCodeDisplay code={tool.code} className="font-medium text-sm" />
                                 <PriceTag value={tool.unitValue} />
                               </div>
                               <p className="text-xs text-muted-foreground truncate max-w-[180px]">
@@ -770,7 +837,7 @@ export default function EntryPage() {
                             </div>
                             <div>
                               <div className="flex flex-wrap items-center gap-1.5">
-                                <p className="font-mono font-bold">{newSelectedTool.code}</p>
+                                <ToolCodeDisplay code={newSelectedTool.code} className="font-bold" />
                                 <PriceTag value={newSelectedTool.unitValue} suffix="/un" />
                               </div>
                               <p className="text-sm text-muted-foreground">{newSelectedTool.description}</p>
@@ -880,7 +947,7 @@ export default function EntryPage() {
                                   <SelectValue placeholder="Selecione o armario" />
                                 </SelectTrigger>
                                 <SelectContent>
-                                  {cabinets.map((c) => (
+                                  {normalCabinets.map((c) => (
                                     <SelectItem key={c.id} value={c.id}>{c.name} - {c.location}</SelectItem>
                                   ))}
                                 </SelectContent>

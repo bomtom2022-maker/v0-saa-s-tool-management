@@ -30,6 +30,7 @@ import {
 import { type Tool } from "@/lib/mock-data";
 import { useDataStore } from "@/lib/data-store";
 import { PriceTag } from "@/components/dashboard/price-tag";
+import { ToolCodeDisplay } from "@/components/dashboard/tool-code-display";
 
 export default function ReformaPage() {
   const { tools, cabinets, drawers, toolTypes, movements, setMovements, suppliers } = useDataStore();
@@ -196,7 +197,7 @@ export default function ReformaPage() {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">Todos os armarios</SelectItem>
-                    {cabinets.map((c) => (
+                    {cabinets.filter(c => !c.isReformOnly).map((c) => (
                       <SelectItem key={c.id} value={c.id}>{c.name} - {c.location}</SelectItem>
                     ))}
                   </SelectContent>
@@ -237,7 +238,7 @@ export default function ReformaPage() {
                           </div>
                           <div>
                             <div className="flex flex-wrap items-center gap-1.5">
-                              <p className="font-mono font-medium">{tool.code}</p>
+                              <ToolCodeDisplay code={tool.code} className="font-medium" />
                               <PriceTag value={tool.unitValue} />
                             </div>
                             <p className="text-sm text-muted-foreground truncate max-w-[180px]">
@@ -288,7 +289,7 @@ export default function ReformaPage() {
                       </div>
                       <div>
                         <div className="flex flex-wrap items-center gap-1.5">
-                          <p className="font-mono font-bold">{selectedTool.code}</p>
+                          <ToolCodeDisplay code={selectedTool.code} className="font-bold" />
                           <PriceTag value={selectedTool.unitValue} suffix="/un" />
                         </div>
                         <p className="text-sm text-muted-foreground">{selectedTool.description}</p>
@@ -314,6 +315,18 @@ export default function ReformaPage() {
                         Ja ha {getReformCount(selectedTool.id)} un. em reforma atualmente
                       </div>
                     )}
+                    {/* Return code preview */}
+                    <div className="mt-3 p-2.5 rounded-lg bg-sky-500/10 border border-sky-500/20">
+                      <p className="text-[11px] font-medium text-sky-400 mb-1.5">Ao retornar da reforma:</p>
+                      <div className="flex items-center gap-2 font-mono text-sm">
+                        <span className="text-muted-foreground">{selectedTool.code}</span>
+                        <span className="text-muted-foreground">{"-->"}</span>
+                        <ToolCodeDisplay code={selectedTool.code + "R"} className="font-bold" />
+                      </div>
+                      <p className="text-[10px] text-muted-foreground mt-1">
+                        A ferramenta recebera sufixo "R" e ira para armario de reformadas (A-R / B-R)
+                      </p>
+                    </div>
                   </div>
                 ) : (
                   <div className="p-8 rounded-lg border border-dashed border-border text-center">
