@@ -67,6 +67,7 @@ import {
 import { DrawerForm } from "@/components/dashboard/drawer-form";
 import { useNotifications } from "@/lib/notifications";
 import { useDataStore } from "@/lib/data-store";
+import { PriceTag } from "@/components/dashboard/price-tag";
 
 export default function CabinetsPage() {
   const { addNotification, addNotificationsBatch } = useNotifications();
@@ -509,11 +510,9 @@ export default function CabinetsPage() {
                               className={`${isLowStock ? "bg-warning/5 hover:bg-warning/10" : "hover:bg-secondary/20"}`}
                             >
                               <TableCell>
-                                <div className="flex items-center gap-2">
+                                <div className="flex flex-wrap items-center gap-1.5">
                                   <span className="font-mono font-semibold text-foreground">{tool.code}</span>
-                                  {tool.unitValue != null && tool.unitValue > 0 && (
-                                    <span className="text-[11px] text-muted-foreground">R$ {tool.unitValue.toFixed(2)}</span>
-                                  )}
+                                  <PriceTag value={tool.unitValue} />
                                 </div>
                               </TableCell>
                               <TableCell className="text-foreground">
@@ -1287,11 +1286,9 @@ export default function CabinetsPage() {
                               </TableCell>
                               <TableCell>
                                 {tool ? (
-                                  <div className="flex items-center gap-2">
+                                  <div className="flex flex-wrap items-center gap-1.5">
                                     <span className="font-mono font-semibold text-foreground">{tool.code}</span>
-                                    {tool.unitValue != null && tool.unitValue > 0 && (
-                                      <span className="text-[11px] text-muted-foreground">R$ {tool.unitValue.toFixed(2)}</span>
-                                    )}
+                                    <PriceTag value={tool.unitValue} />
                                   </div>
                                 ) : (
                                   <span className="text-muted-foreground italic text-sm">--</span>

@@ -29,6 +29,7 @@ import {
 } from "lucide-react";
 import { type Tool } from "@/lib/mock-data";
 import { useDataStore } from "@/lib/data-store";
+import { PriceTag } from "@/components/dashboard/price-tag";
 
 export default function ReformaPage() {
   const { tools, cabinets, drawers, toolTypes, movements, setMovements, suppliers } = useDataStore();
@@ -232,11 +233,9 @@ export default function ReformaPage() {
                             <Package className="h-5 w-5 text-muted-foreground" />
                           </div>
                           <div>
-                            <div className="flex items-center gap-2">
+                            <div className="flex flex-wrap items-center gap-1.5">
                               <p className="font-mono font-medium">{tool.code}</p>
-                              {tool.unitValue != null && tool.unitValue > 0 && (
-                                <span className="text-[11px] text-muted-foreground">R$ {tool.unitValue.toFixed(2)}</span>
-                              )}
+                              <PriceTag value={tool.unitValue} />
                             </div>
                             <p className="text-sm text-muted-foreground truncate max-w-[180px]">
                               {tool.description}
@@ -285,11 +284,9 @@ export default function ReformaPage() {
                         <Wrench className="h-6 w-6 text-orange-500" />
                       </div>
                       <div>
-                        <div className="flex items-center gap-2">
+                        <div className="flex flex-wrap items-center gap-1.5">
                           <p className="font-mono font-bold">{selectedTool.code}</p>
-                          {selectedTool.unitValue != null && selectedTool.unitValue > 0 && (
-                            <span className="text-[11px] text-muted-foreground">R$ {selectedTool.unitValue.toFixed(2)}/un</span>
-                          )}
+                          <PriceTag value={selectedTool.unitValue} suffix="/un" />
                         </div>
                         <p className="text-sm text-muted-foreground">{selectedTool.description}</p>
                       </div>
