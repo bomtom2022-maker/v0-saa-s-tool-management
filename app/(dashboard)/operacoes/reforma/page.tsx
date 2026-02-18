@@ -321,7 +321,7 @@ export default function ReformaPage() {
                       <div className="flex items-center gap-2 font-mono text-sm">
                         <span className="text-muted-foreground">{selectedTool.code}</span>
                         <span className="text-muted-foreground">{"-->"}</span>
-                        <ToolCodeDisplay code={selectedTool.code + "R"} className="font-bold" />
+                        <ToolCodeDisplay code={selectedTool.code.replace(/R$/, "") + "R"} className="font-bold" />
                       </div>
                       <p className="text-[10px] text-muted-foreground mt-1">
                         A ferramenta recebera sufixo "R" e ira para armario de reformadas (A-R / B-R)

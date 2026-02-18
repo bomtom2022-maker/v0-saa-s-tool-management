@@ -144,7 +144,9 @@ export default function EntryPage() {
     if (isReformReturn) {
       // REFORM RETURN: create a NEW separate tool record with "R" suffix
       // The original tool stays untouched in its original cabinet with its current quantity
-      const newCode = selectedTool.code + "R";
+      // Always a single "R" suffix - strip existing R(s) first then add one R
+      const baseCode = selectedTool.code.replace(/R+$/, "");
+      const newCode = baseCode + "R";
       const newReformCount = (selectedTool.reformCount || 0) + 1;
       const newToolId = `reform-${selectedTool.id}-${Date.now()}`;
 
@@ -191,12 +193,12 @@ export default function EntryPage() {
       const nfRetorno = invoiceNumber || selectedReform.invoiceNumber || "";
       const returnQty = Math.min(qty, selectedReform.remaining);
 
-      // Register reform_return movement
+      // Register reform_return movement - use ORIGINAL toolId so getPendingReforms can match sends to returns
       setMovements(prev => [
         {
           id: `mov-${Date.now()}-ret`,
           type: "reform_return" as const,
-          toolId: existingReformedTool?.id || newToolId,
+          toolId: selectedTool.id,
           userId: "eng-processo-1",
           quantity: returnQty,
           date: new Date().toISOString(),
@@ -607,7 +609,7 @@ export default function EntryPage() {
                         <div className="flex items-center gap-3 font-mono">
                           <span className="text-sm text-muted-foreground">{selectedTool.code}</span>
                           <span className="text-muted-foreground">{"-->"}</span>
-                          <ToolCodeDisplay code={selectedTool.code + "R"} className="text-sm font-bold" />
+                          <ToolCodeDisplay code={selectedTool.code.replace(/R$/, "") + "R"} className="text-sm font-bold" />
                         </div>
                         <p className="text-[11px] text-muted-foreground mt-1.5">
                           O codigo da ferramenta recebera o sufixo "R" e sera movida para o armario de ferramentas reformadas.
@@ -746,7 +748,7 @@ export default function EntryPage() {
                       {selectedReform ? (
                         <>
                           <Wrench className="mr-2 h-4 w-4" />
-                          {`Registrar Retorno de Reforma (${selectedTool?.code} -> ${selectedTool?.code}R)`}
+                          {`Registrar Retorno de Reforma (${selectedTool?.code} -> ${selectedTool?.code?.replace(/R$/, "")}R)`}
                         </>
                       ) : (
                         <>
