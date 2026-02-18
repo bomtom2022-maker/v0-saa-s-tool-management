@@ -141,39 +141,88 @@ export default function EntryPage() {
     const targetDrawerId = destDrawerId || selectedTool.drawerId;
     const targetPosition = destPosition || selectedTool.position;
 
-    // If reform return: add "R" suffix to code, move to reform cabinet, increment reformCount
-    const newCode = isReformReturn ? selectedTool.code + "R" : selectedTool.code;
-    const newReformCount = isReformReturn ? (selectedTool.reformCount || 0) + 1 : (selectedTool.reformCount || 0);
+    if (isReformReturn) {
+      // REFORM RETURN: create a NEW separate tool record with "R" suffix
+      // The original tool stays untouched in its original cabinet with its current quantity
+      const newCode = selectedTool.code + "R";
+      const newReformCount = (selectedTool.reformCount || 0) + 1;
+      const newToolId = `reform-${selectedTool.id}-${Date.now()}`;
 
-    // Update tool quantity, code (if reform), and location
-    setTools(prev =>
-      prev.map(t =>
-        t.id === selectedTool.id
-          ? {
-              ...t,
-              code: newCode,
-              quantity: t.quantity + qty,
-              cabinetId: targetCabinetId,
-              drawerId: targetDrawerId,
-              position: targetPosition,
-              reformCount: newReformCount,
-            }
-          : t
-      )
-    );
+      // Check if a reformed version already exists in the target cabinet
+      const existingReformedTool = tools.find(
+        t => t.code === newCode && t.cabinetId === targetCabinetId
+      );
 
-    const entryNotes = [
-      isReformReturn ? `Retorno de reforma - Codigo: ${selectedTool.code} -> ${newCode}` : null,
-      invoiceNumber ? `NF: ${invoiceNumber}` : null,
-      notes || null,
-    ].filter(Boolean).join(" | ") || `Entrada de ${qty} un. de ${selectedTool.code}`;
+      if (existingReformedTool) {
+        // Add quantity to existing reformed tool record
+        setTools(prev =>
+          prev.map(t =>
+            t.id === existingReformedTool.id
+              ? { ...t, quantity: t.quantity + qty }
+              : t
+          )
+        );
+      } else {
+        // Create a brand new tool record for the reformed version
+        const reformedTool = {
+          ...selectedTool,
+          id: newToolId,
+          code: newCode,
+          quantity: qty,
+          cabinetId: targetCabinetId,
+          drawerId: targetDrawerId,
+          position: targetPosition,
+          reformCount: newReformCount,
+        };
+        setTools(prev => [...prev, reformedTool]);
+      }
 
-    // Register entry movement
-    setMovements(prev => {
-      const newMovements = [
+      const nfRetorno = invoiceNumber || selectedReform.invoiceNumber || "";
+      const returnQty = Math.min(qty, selectedReform.remaining);
+
+      // Register reform_return movement
+      setMovements(prev => [
+        {
+          id: `mov-${Date.now()}-ret`,
+          type: "reform_return" as const,
+          toolId: existingReformedTool?.id || newToolId,
+          userId: "eng-processo-1",
+          quantity: returnQty,
+          date: new Date().toISOString(),
+          notes: `Retorno reforma - ${selectedTool.code} -> ${newCode} | NF retorno: ${nfRetorno || "N/A"} | NF envio: ${selectedReform.invoiceNumber || "N/A"}${selectedReform.supplier ? ` | Fornecedor: ${selectedReform.supplier}` : ""} | Destino: ${getCabinetName(targetCabinetId)}`,
+          invoiceNumber: nfRetorno || undefined,
+        },
+        ...prev,
+      ]);
+
+      showSuccess(
+        `Retorno de reforma: +${qty} un. de ${newCode} no ${getCabinetName(targetCabinetId)} | Original ${selectedTool.code} permanece com ${selectedTool.quantity} un.${invoiceNumber ? ` | NF: ${invoiceNumber}` : ""}`
+      );
+    } else {
+      // NORMAL ENTRY: add quantity to existing tool in its current/target cabinet
+      setTools(prev =>
+        prev.map(t =>
+          t.id === selectedTool.id
+            ? {
+                ...t,
+                quantity: t.quantity + qty,
+                cabinetId: targetCabinetId,
+                drawerId: targetDrawerId,
+                position: targetPosition,
+              }
+            : t
+        )
+      );
+
+      const entryNotes = [
+        invoiceNumber ? `NF: ${invoiceNumber}` : null,
+        notes || null,
+      ].filter(Boolean).join(" | ") || `Entrada de ${qty} un. de ${selectedTool.code}`;
+
+      setMovements(prev => [
         {
           id: `mov-${Date.now()}`,
-          type: isReformReturn ? "reform_return" as const : "entry" as const,
+          type: "entry" as const,
           toolId: selectedTool.id,
           userId: "eng-processo-1",
           quantity: qty,
@@ -182,34 +231,12 @@ export default function EntryPage() {
           invoiceNumber: invoiceNumber || undefined,
         },
         ...prev,
-      ];
+      ]);
 
-      // If a specific reform was selected, register an additional reform_return (baixa) movement
-      if (selectedReform) {
-        const returnQty = Math.min(qty, selectedReform.remaining);
-        const nfRetorno = invoiceNumber || selectedReform.invoiceNumber || "";
-        newMovements.unshift({
-          id: `mov-${Date.now()}-ret`,
-          type: "reform_return" as const,
-          toolId: selectedTool.id,
-          userId: "eng-processo-1",
-          quantity: returnQty,
-          date: new Date().toISOString(),
-          notes: `Baixa reforma - ${selectedTool.code} -> ${newCode} | NF retorno: ${nfRetorno || "N/A"} | NF envio: ${selectedReform.invoiceNumber || "N/A"}${selectedReform.supplier ? ` | Fornecedor: ${selectedReform.supplier}` : ""} | Destino: ${getCabinetName(targetCabinetId)}`,
-          invoiceNumber: nfRetorno || undefined,
-        });
-      }
-
-      return newMovements;
-    });
-
-    const reformMsg = selectedReform
-      ? ` | Retorno reforma: ${selectedTool.code} -> ${newCode} | Destino: ${getCabinetName(targetCabinetId)}`
-      : "";
-
-    showSuccess(
-      `Entrada registrada: +${qty} un. de ${newCode} no ${getCabinetName(targetCabinetId)}${invoiceNumber ? ` | NF: ${invoiceNumber}` : ""}${reformMsg}`
-    );
+      showSuccess(
+        `Entrada registrada: +${qty} un. de ${selectedTool.code} no ${getCabinetName(targetCabinetId)}${invoiceNumber ? ` | NF: ${invoiceNumber}` : ""}`
+      );
+    }
     setSelectedTool(null);
     setSelectedReformId(null);
     setQuantity("");
