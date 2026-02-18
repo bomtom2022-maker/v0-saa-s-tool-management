@@ -79,20 +79,29 @@ export default function EntryPage() {
   const newDrawersForCabinet = drawersForCabinet(newCabinetId);
   const destDrawersForCabinet = drawersForCabinet(destCabinetId || selectedTool?.cabinetId || "");
 
-  // Calculate pending reform for a tool
-  const getPendingReform = (toolId: string) => {
-    let out = 0;
-    for (const m of movements) {
-      if (m.toolId === toolId && m.type === "reform_send") out += m.quantity;
-      if (m.toolId === toolId && m.type === "reform_return") out -= m.quantity;
+  // Calculate all pending reform sends for a tool (each with remaining qty)
+  const getPendingReforms = (toolId: string) => {
+    const sends = movements
+      .filter(m => m.toolId === toolId && m.type === "reform_send")
+      .map(m => ({ ...m, remaining: m.quantity }));
+    // Subtract returns from oldest sends first
+    const returns = movements.filter(m => m.toolId === toolId && m.type === "reform_return");
+    let totalReturned = returns.reduce((acc, r) => acc + r.quantity, 0);
+    for (const s of sends) {
+      if (totalReturned <= 0) break;
+      const deduct = Math.min(s.remaining, totalReturned);
+      s.remaining -= deduct;
+      totalReturned -= deduct;
     }
-    return Math.max(0, out);
+    return sends.filter(s => s.remaining > 0);
   };
 
-  // Get the latest reform_send movement for a tool (to show NF info)
-  const getLatestReformSend = (toolId: string) => {
-    return movements.find(m => m.toolId === toolId && m.type === "reform_send");
+  const getTotalPendingReform = (toolId: string) => {
+    return getPendingReforms(toolId).reduce((acc, s) => acc + s.remaining, 0);
   };
+
+  // Selected reform to give baixa
+  const [selectedReformId, setSelectedReformId] = useState<string | null>(null);
 
   const showSuccess = (msg: string) => {
     setSuccessMsg(msg);
@@ -100,8 +109,9 @@ export default function EntryPage() {
     setTimeout(() => setSuccess(false), 5000);
   };
 
-  const pendingReform = selectedTool ? getPendingReform(selectedTool.id) : 0;
-  const latestReformSend = selectedTool ? getLatestReformSend(selectedTool.id) : null;
+  const pendingReforms = selectedTool ? getPendingReforms(selectedTool.id) : [];
+  const totalPendingReform = selectedTool ? getTotalPendingReform(selectedTool.id) : 0;
+  const selectedReform = pendingReforms.find(r => r.id === selectedReformId) || null;
 
   // Handle existing tool entry
   const handleExistingEntry = (e: React.FormEvent) => {
@@ -151,9 +161,9 @@ export default function EntryPage() {
         ...prev,
       ];
 
-      // If tool has pending reform and NF was provided, automatically register reform_return
-      if (pendingReform > 0 && invoiceNumber) {
-        const returnQty = Math.min(qty, pendingReform);
+      // If a specific reform was selected and NF was provided, register reform_return for that reform
+      if (selectedReform && invoiceNumber) {
+        const returnQty = Math.min(qty, selectedReform.remaining);
         newMovements.unshift({
           id: `mov-${Date.now()}-ret`,
           type: "reform_return" as const,
@@ -161,7 +171,7 @@ export default function EntryPage() {
           userId: "eng-processo-1",
           quantity: returnQty,
           date: new Date().toISOString(),
-          notes: `Retorno de reforma - NF: ${invoiceNumber}${latestReformSend?.invoiceNumber ? ` | NF envio: ${latestReformSend.invoiceNumber}` : ""}`,
+          notes: `Retorno de reforma - NF retorno: ${invoiceNumber} | NF envio: ${selectedReform.invoiceNumber || "N/A"}${selectedReform.supplier ? ` | Fornecedor: ${selectedReform.supplier}` : ""}`,
           invoiceNumber: invoiceNumber,
         });
       }
@@ -169,14 +179,15 @@ export default function EntryPage() {
       return newMovements;
     });
 
-    const reformMsg = pendingReform > 0 && invoiceNumber
-      ? ` | Baixa automatica na reforma: ${Math.min(qty, pendingReform)} un.`
+    const reformMsg = selectedReform && invoiceNumber
+      ? ` | Baixa na reforma NF ${selectedReform.invoiceNumber || "s/n"}: ${Math.min(qty, selectedReform.remaining)} un.`
       : "";
 
     showSuccess(
       `Entrada registrada: +${qty} un. de ${selectedTool.code} no ${getCabinetName(targetCabinetId)}${invoiceNumber ? ` | NF: ${invoiceNumber}` : ""}${reformMsg}`
     );
     setSelectedTool(null);
+    setSelectedReformId(null);
     setQuantity("");
     setDestCabinetId("");
     setDestDrawerId("");
@@ -317,12 +328,14 @@ export default function EntryPage() {
                       </p>
                     ) : searchTerm ? (
                       filteredTools.map((tool) => {
-                        const reformPending = getPendingReform(tool.id);
+                        const toolPendingReforms = getPendingReforms(tool.id);
+                        const reformPending = toolPendingReforms.reduce((a, s) => a + s.remaining, 0);
                         return (
                           <div
                             key={tool.id}
                             onClick={() => {
                               setSelectedTool(tool);
+                              setSelectedReformId(null);
                               setDestCabinetId(tool.cabinetId);
                               setDestDrawerId(tool.drawerId);
                               setDestPosition(tool.position);
@@ -411,22 +424,57 @@ export default function EntryPage() {
                           </div>
                         </div>
 
-                        {/* Reform pending alert */}
-                        {pendingReform > 0 && (
-                          <div className="mt-3 p-3 rounded-lg bg-orange-500/10 border border-orange-500/20">
+                        {/* Pending reforms list */}
+                        {pendingReforms.length > 0 && (
+                          <div className="mt-3 space-y-2">
                             <div className="flex items-center gap-2 text-sm font-medium text-orange-600">
                               <AlertTriangle className="h-4 w-4 shrink-0" />
-                              {pendingReform} un. em reforma pendente
+                              {totalPendingReform} un. em reforma ({pendingReforms.length} envio{pendingReforms.length > 1 ? "s" : ""})
                             </div>
-                            <p className="text-xs text-muted-foreground mt-1">
-                              Informe o numero da NF abaixo para dar baixa automatica na reforma.
+                            <p className="text-xs text-muted-foreground">
+                              Selecione a reforma para dar baixa ao registrar a entrada com NF:
                             </p>
-                            {latestReformSend?.invoiceNumber && (
-                              <p className="text-xs text-muted-foreground mt-0.5">
-                                NF de envio: <span className="font-mono font-medium text-foreground">{latestReformSend.invoiceNumber}</span>
-                                {latestReformSend.supplier && <> | Fornecedor: {latestReformSend.supplier}</>}
-                              </p>
-                            )}
+                            <div className="space-y-1.5 max-h-[200px] overflow-y-auto">
+                              {pendingReforms.map((reform) => {
+                                const sendDate = new Date(reform.date);
+                                const isSelected = selectedReformId === reform.id;
+                                return (
+                                  <div
+                                    key={reform.id}
+                                    onClick={() => setSelectedReformId(isSelected ? null : reform.id)}
+                                    className={`p-2.5 rounded-lg border cursor-pointer transition-colors text-xs ${
+                                      isSelected
+                                        ? "border-orange-500 bg-orange-500/10"
+                                        : "border-border hover:border-orange-500/50"
+                                    }`}
+                                  >
+                                    <div className="flex items-center justify-between">
+                                      <div className="flex items-center gap-2">
+                                        <Wrench className={`h-3.5 w-3.5 ${isSelected ? "text-orange-500" : "text-muted-foreground"}`} />
+                                        <span className="font-mono font-medium">
+                                          NF: {reform.invoiceNumber || "Sem NF"}
+                                        </span>
+                                      </div>
+                                      <Badge variant={isSelected ? "default" : "secondary"} className="text-[10px]">
+                                        {reform.remaining} un.
+                                      </Badge>
+                                    </div>
+                                    <div className="mt-1 text-muted-foreground flex flex-wrap gap-x-3">
+                                      <span>Enviado: {sendDate.toLocaleDateString("pt-BR")}</span>
+                                      {reform.supplier && <span>Fornecedor: {reform.supplier}</span>}
+                                      {reform.estimatedReturn && (
+                                        <span>
+                                          Previsao: {new Date(reform.estimatedReturn).toLocaleDateString("pt-BR")}
+                                          {new Date(reform.estimatedReturn) < new Date() && (
+                                            <span className="text-destructive font-medium ml-1">(Atrasado)</span>
+                                          )}
+                                        </span>
+                                      )}
+                                    </div>
+                                  </div>
+                                );
+                              })}
+                            </div>
                           </div>
                         )}
                       </div>
@@ -442,9 +490,9 @@ export default function EntryPage() {
                       <Label htmlFor="invoiceNumber" className="flex items-center gap-2">
                         <FileText className="h-4 w-4 text-muted-foreground" />
                         Numero da Nota Fiscal
-                        {pendingReform > 0 && (
+                        {selectedReform && (
                           <Badge variant="outline" className="text-[10px] text-orange-600 border-orange-500/30">
-                            Dar baixa na reforma
+                            Baixa na NF {selectedReform.invoiceNumber || "s/n"}
                           </Badge>
                         )}
                       </Label>
@@ -454,11 +502,11 @@ export default function EntryPage() {
                         value={invoiceNumber}
                         onChange={(e) => setInvoiceNumber(e.target.value)}
                         disabled={!selectedTool}
-                        className={pendingReform > 0 ? "border-orange-500/30 focus-visible:ring-orange-500/30" : ""}
+                        className={selectedReform ? "border-orange-500/30 focus-visible:ring-orange-500/30" : ""}
                       />
-                      {pendingReform > 0 && (
+                      {selectedReform && invoiceNumber && (
                         <p className="text-xs text-orange-500">
-                          Ao informar a NF, o sistema registrara automaticamente o retorno de {Math.min(Number(quantity) || pendingReform, pendingReform)} un. da reforma.
+                          Baixa automatica: {Math.min(Number(quantity) || selectedReform.remaining, selectedReform.remaining)} un. da reforma NF {selectedReform.invoiceNumber || "s/n"} ({new Date(selectedReform.date).toLocaleDateString("pt-BR")})
                         </p>
                       )}
                     </div>
@@ -547,8 +595,9 @@ export default function EntryPage() {
 
                     <Button type="submit" className="w-full" disabled={!selectedTool || !quantity || !destCabinetId}>
                       <Plus className="mr-2 h-4 w-4" />
-                      Registrar Entrada
-                      {pendingReform > 0 && invoiceNumber && " e Baixa na Reforma"}
+                      {selectedReform && invoiceNumber
+                        ? `Registrar Entrada e Baixa (NF ${selectedReform.invoiceNumber || "s/n"})`
+                        : "Registrar Entrada"}
                     </Button>
                   </form>
                 </CardContent>
