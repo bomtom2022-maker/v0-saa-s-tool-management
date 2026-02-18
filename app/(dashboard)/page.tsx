@@ -162,9 +162,16 @@ export default function DashboardPage() {
                     className="flex items-center justify-between border-b border-border pb-4 last:border-0 last:pb-0"
                   >
                     <div>
-                      <p className="text-sm font-medium text-foreground">
-                        {cabinet.name}
-                      </p>
+                      <div className="flex items-center gap-2">
+                        <p className="text-sm font-medium text-foreground">
+                          {cabinet.name}
+                        </p>
+                        {cabinet.isReformOnly && (
+                          <span className="inline-flex items-center rounded-full bg-sky-500/20 px-1.5 py-0.5 text-[10px] font-medium text-sky-400 border border-sky-500/30">
+                            Reformadas
+                          </span>
+                        )}
+                      </div>
                       <p className="text-xs text-muted-foreground">
                         {cabinet.location} - {cabinet.drawersCount} gavetas
                       </p>

@@ -204,6 +204,7 @@ export default function CabinetsPage() {
       location: formData.get("location") as string,
       drawersCount: editingCabinet?.drawersCount || 0,
       totalTools: editingCabinet?.totalTools || 0,
+      isReformOnly: editingCabinet?.isReformOnly,
     };
 
     if (editingCabinet) {
@@ -235,9 +236,10 @@ export default function CabinetsPage() {
     setEditingCabinet(null);
   };
 
-  // Delete cabinet
+  // Delete cabinet (reform-only cabinets are protected)
   const handleDeleteCabinet = (id: string) => {
     const cab = cabinets.find((c) => c.id === id);
+    if (cab?.isReformOnly) return;
     setCabinets(cabinets.filter((c) => c.id !== id));
     setDrawers(drawers.filter((d) => d.cabinetId !== id));
     setTools(tools.filter((t) => t.cabinetId !== id));
@@ -725,25 +727,33 @@ export default function CabinetsPage() {
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
-                          <DropdownMenuItem
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleEditCabinet(cabinet);
-                            }}
-                          >
-                            <Edit className="mr-2 h-4 w-4" />
-                            Editar
-                          </DropdownMenuItem>
-                          <DropdownMenuItem
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleDeleteCabinet(cabinet.id);
-                            }}
-                            className="text-destructive"
-                          >
-                            <Trash2 className="mr-2 h-4 w-4" />
-                            Excluir
-                          </DropdownMenuItem>
+                          {cabinet.isReformOnly ? (
+                            <DropdownMenuItem disabled className="text-muted-foreground text-xs">
+                              Armario protegido (somente reformadas)
+                            </DropdownMenuItem>
+                          ) : (
+                            <>
+                              <DropdownMenuItem
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleEditCabinet(cabinet);
+                                }}
+                              >
+                                <Edit className="mr-2 h-4 w-4" />
+                                Editar
+                              </DropdownMenuItem>
+                              <DropdownMenuItem
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleDeleteCabinet(cabinet.id);
+                                }}
+                                className="text-destructive"
+                              >
+                                <Trash2 className="mr-2 h-4 w-4" />
+                                Excluir
+                              </DropdownMenuItem>
+                            </>
+                          )}
                         </DropdownMenuContent>
                       </DropdownMenu>
                     </div>
