@@ -43,10 +43,11 @@ export default function ReformaPage() {
   const [filterCabinetId, setFilterCabinetId] = useState("all");
   const [success, setSuccess] = useState(false);
   const [successMsg, setSuccessMsg] = useState("");
-  const [currentTime, setCurrentTime] = useState(new Date());
-
-  // Live clock
+  const [currentTime, setCurrentTime] = useState<Date | null>(null);
+  
+  // Live clock - only on client to avoid hydration mismatch
   useEffect(() => {
+    setCurrentTime(new Date());
     const interval = setInterval(() => setCurrentTime(new Date()), 1000);
     return () => clearInterval(interval);
   }, []);
@@ -158,10 +159,12 @@ export default function ReformaPage() {
                 </p>
               </div>
             </div>
-            <div className="hidden sm:flex items-center gap-2 text-sm font-mono bg-background rounded-lg px-3 py-2 border border-border" suppressHydrationWarning>
-              <Clock className="h-4 w-4 text-primary" />
-              <span className="text-foreground" suppressHydrationWarning>{formatDateTime(currentTime)}</span>
-            </div>
+            {currentTime && (
+              <div className="hidden sm:flex items-center gap-2 text-sm font-mono bg-background rounded-lg px-3 py-2 border border-border">
+                <Clock className="h-4 w-4 text-primary" />
+                <span className="text-foreground">{formatDateTime(currentTime)}</span>
+              </div>
+            )}
           </CardContent>
         </Card>
 
@@ -326,7 +329,7 @@ export default function ReformaPage() {
                     Data/Hora do Envio
                   </Label>
                   <div className="flex items-center gap-2 rounded-md border border-border bg-muted px-3 py-2">
-                    <span className="text-sm font-mono text-foreground">{formatDateTime(currentTime)}</span>
+                    <span className="text-sm font-mono text-foreground">{currentTime ? formatDateTime(currentTime) : "--/--/----, --:--:--"}</span>
                     <Badge variant="outline" className="ml-auto text-xs">Automatico</Badge>
                   </div>
                 </div>

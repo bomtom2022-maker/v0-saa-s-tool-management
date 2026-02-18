@@ -116,6 +116,14 @@ export default function EntryPage() {
   // Handle existing tool entry
   const handleExistingEntry = (e: React.FormEvent) => {
     e.preventDefault();
+    console.log("[v0] ENTRY SUBMIT", {
+      selectedTool: selectedTool?.code,
+      quantity,
+      invoiceNumber,
+      selectedReformId,
+      selectedReform: selectedReform ? { id: selectedReform.id, remaining: selectedReform.remaining, invoiceNumber: selectedReform.invoiceNumber } : null,
+      pendingReformsCount: pendingReforms.length,
+    });
     if (!selectedTool || !quantity) return;
 
     const qty = Number(quantity);
@@ -161,9 +169,10 @@ export default function EntryPage() {
         ...prev,
       ];
 
-      // If a specific reform was selected and NF was provided, register reform_return for that reform
-      if (selectedReform && invoiceNumber) {
+      // If a specific reform was selected, register reform_return (baixa)
+      if (selectedReform) {
         const returnQty = Math.min(qty, selectedReform.remaining);
+        const nfRetorno = invoiceNumber || selectedReform.invoiceNumber || "";
         newMovements.unshift({
           id: `mov-${Date.now()}-ret`,
           type: "reform_return" as const,
@@ -171,15 +180,15 @@ export default function EntryPage() {
           userId: "eng-processo-1",
           quantity: returnQty,
           date: new Date().toISOString(),
-          notes: `Retorno de reforma - NF retorno: ${invoiceNumber} | NF envio: ${selectedReform.invoiceNumber || "N/A"}${selectedReform.supplier ? ` | Fornecedor: ${selectedReform.supplier}` : ""}`,
-          invoiceNumber: invoiceNumber,
+          notes: `Retorno de reforma - NF retorno: ${nfRetorno || "N/A"} | NF envio: ${selectedReform.invoiceNumber || "N/A"}${selectedReform.supplier ? ` | Fornecedor: ${selectedReform.supplier}` : ""}`,
+          invoiceNumber: nfRetorno || undefined,
         });
       }
 
       return newMovements;
     });
 
-    const reformMsg = selectedReform && invoiceNumber
+    const reformMsg = selectedReform
       ? ` | Baixa na reforma NF ${selectedReform.invoiceNumber || "s/n"}: ${Math.min(qty, selectedReform.remaining)} un.`
       : "";
 
@@ -441,7 +450,15 @@ export default function EntryPage() {
                                 return (
                                   <div
                                     key={reform.id}
-                                    onClick={() => setSelectedReformId(isSelected ? null : reform.id)}
+                                    onClick={() => {
+                                      if (isSelected) {
+                                        setSelectedReformId(null);
+                                        setInvoiceNumber("");
+                                      } else {
+                                        setSelectedReformId(reform.id);
+                                        setInvoiceNumber(reform.invoiceNumber || "");
+                                      }
+                                    }}
                                     className={`p-2.5 rounded-lg border cursor-pointer transition-colors text-xs ${
                                       isSelected
                                         ? "border-orange-500 bg-orange-500/10"
@@ -504,9 +521,9 @@ export default function EntryPage() {
                         disabled={!selectedTool}
                         className={selectedReform ? "border-orange-500/30 focus-visible:ring-orange-500/30" : ""}
                       />
-                      {selectedReform && invoiceNumber && (
+                      {selectedReform && (
                         <p className="text-xs text-orange-500">
-                          Baixa automatica: {Math.min(Number(quantity) || selectedReform.remaining, selectedReform.remaining)} un. da reforma NF {selectedReform.invoiceNumber || "s/n"} ({new Date(selectedReform.date).toLocaleDateString("pt-BR")})
+                          Ao registrar, dara baixa automatica em {Math.min(Number(quantity) || selectedReform.remaining, selectedReform.remaining)} un. da reforma NF {selectedReform.invoiceNumber || "s/n"} ({new Date(selectedReform.date).toLocaleDateString("pt-BR")})
                         </p>
                       )}
                     </div>
@@ -595,7 +612,7 @@ export default function EntryPage() {
 
                     <Button type="submit" className="w-full" disabled={!selectedTool || !quantity || !destCabinetId}>
                       <Plus className="mr-2 h-4 w-4" />
-                      {selectedReform && invoiceNumber
+                      {selectedReform
                         ? `Registrar Entrada e Baixa (NF ${selectedReform.invoiceNumber || "s/n"})`
                         : "Registrar Entrada"}
                     </Button>
