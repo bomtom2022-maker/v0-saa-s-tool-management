@@ -508,8 +508,13 @@ export default function CabinetsPage() {
                               key={tool.id}
                               className={`${isLowStock ? "bg-warning/5 hover:bg-warning/10" : "hover:bg-secondary/20"}`}
                             >
-                              <TableCell className="font-mono font-semibold text-foreground">
-                                {tool.code}
+                              <TableCell>
+                                <div className="flex items-center gap-2">
+                                  <span className="font-mono font-semibold text-foreground">{tool.code}</span>
+                                  {tool.unitValue != null && tool.unitValue > 0 && (
+                                    <span className="text-[11px] text-muted-foreground">R$ {tool.unitValue.toFixed(2)}</span>
+                                  )}
+                                </div>
                               </TableCell>
                               <TableCell className="text-foreground">
                                 {tool.description}
@@ -1282,9 +1287,12 @@ export default function CabinetsPage() {
                               </TableCell>
                               <TableCell>
                                 {tool ? (
-                                  <span className="font-mono font-semibold text-foreground">
-                                    {tool.code}
-                                  </span>
+                                  <div className="flex items-center gap-2">
+                                    <span className="font-mono font-semibold text-foreground">{tool.code}</span>
+                                    {tool.unitValue != null && tool.unitValue > 0 && (
+                                      <span className="text-[11px] text-muted-foreground">R$ {tool.unitValue.toFixed(2)}</span>
+                                    )}
+                                  </div>
                                 ) : (
                                   <span className="text-muted-foreground italic text-sm">--</span>
                                 )}
