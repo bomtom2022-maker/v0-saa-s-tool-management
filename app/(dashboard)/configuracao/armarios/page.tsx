@@ -356,6 +356,7 @@ export default function CabinetsPage() {
       position: (formData.get("position") as string).toUpperCase(),
       quantity: Number(formData.get("quantity")),
       minStock: Number(formData.get("minStock")),
+      unitValue: formData.get("unitValue") ? Number(formData.get("unitValue")) : undefined,
       notes: formData.get("notes") as string || "",
       reformDate: (formData.get("reformDate") as string) || undefined,
     };
@@ -992,6 +993,19 @@ export default function CabinetsPage() {
                             defaultValue={editingTool?.minStock}
                             required
                           />
+                        </div>
+                        <div className="grid gap-2">
+                          <Label htmlFor="unitValue">Valor Unitario (R$)</Label>
+                          <Input
+                            id="unitValue"
+                            name="unitValue"
+                            type="number"
+                            min="0"
+                            step="0.01"
+                            placeholder="0,00"
+                            defaultValue={editingTool?.unitValue || ""}
+                          />
+                          <p className="text-xs text-muted-foreground">Opcional. Valor unitario em Reais.</p>
                         </div>
                         <div className="grid gap-2">
                           <Label htmlFor="statusId">Status</Label>

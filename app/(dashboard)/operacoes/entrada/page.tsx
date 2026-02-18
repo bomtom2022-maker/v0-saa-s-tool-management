@@ -58,6 +58,7 @@ export default function EntryPage() {
   const [newPosition, setNewPosition] = useState("");
   const [newQuantity, setNewQuantity] = useState("");
   const [newMinStock, setNewMinStock] = useState("");
+  const [newUnitValue, setNewUnitValue] = useState("");
   const [newNotes, setNewNotes] = useState("");
 
   const filteredTools = tools.filter(
@@ -149,9 +150,10 @@ export default function EntryPage() {
       drawerId: newDrawerId,
       position: newPosition,
       quantity: qty,
-      minStock: Number(newMinStock) || 0,
-      notes: newNotes,
-    };
+  minStock: Number(newMinStock) || 0,
+  unitValue: newUnitValue ? Number(newUnitValue) : undefined,
+  notes: newNotes,
+  };
 
     setTools(prev => [...prev, newTool]);
 
@@ -180,8 +182,9 @@ export default function EntryPage() {
     setNewDrawerId("");
     setNewPosition("");
     setNewQuantity("");
-    setNewMinStock("");
-    setNewNotes("");
+  setNewMinStock("");
+  setNewUnitValue("");
+  setNewNotes("");
   };
 
   return (
@@ -586,11 +589,26 @@ export default function EntryPage() {
                           type="number"
                           min="0"
                           placeholder="0"
-                          value={newMinStock}
-                          onChange={(e) => setNewMinStock(e.target.value)}
-                        />
-                      </div>
-                    </div>
+  value={newMinStock}
+  onChange={(e) => setNewMinStock(e.target.value)}
+  />
+  </div>
+  </div>
+
+  {/* Unit Value */}
+  <div className="grid gap-2">
+  <Label htmlFor="newUnitValue">Valor Unitario (R$)</Label>
+  <Input
+  id="newUnitValue"
+  type="number"
+  min="0"
+  step="0.01"
+  placeholder="0,00"
+  value={newUnitValue}
+  onChange={(e) => setNewUnitValue(e.target.value)}
+  />
+  <p className="text-xs text-muted-foreground">Opcional. Valor unitario da ferramenta em Reais.</p>
+  </div>
                   </div>
 
                   <div className="grid gap-2">

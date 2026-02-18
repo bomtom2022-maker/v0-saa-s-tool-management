@@ -61,6 +61,7 @@ export interface Tool {
   quantity: number;
   minStock: number;
   notes: string;
+  unitValue?: number; // unit price in BRL (optional)
   reformDate?: string; // ISO date string - next scheduled reform
 }
 
