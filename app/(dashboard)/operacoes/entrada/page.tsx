@@ -29,13 +29,16 @@ import {
   Plus,
   Archive,
   Layers,
+  FileText,
+  Wrench,
+  AlertTriangle,
 } from "lucide-react";
 import { type Tool } from "@/lib/mock-data";
 import { useDataStore } from "@/lib/data-store";
 import { PriceTag } from "@/components/dashboard/price-tag";
 
 export default function EntryPage() {
-  const { tools, setTools, cabinets, drawers, toolTypes, statuses, movements, setMovements } = useDataStore();
+  const { tools, setTools, cabinets, drawers, toolTypes, movements, setMovements } = useDataStore();
   const [tab, setTab] = useState("existing");
 
   // Existing tool state
@@ -45,6 +48,7 @@ export default function EntryPage() {
   const [destCabinetId, setDestCabinetId] = useState("");
   const [destDrawerId, setDestDrawerId] = useState("");
   const [destPosition, setDestPosition] = useState("");
+  const [invoiceNumber, setInvoiceNumber] = useState("");
   const [notes, setNotes] = useState("");
   const [success, setSuccess] = useState(false);
   const [successMsg, setSuccessMsg] = useState("");
@@ -75,11 +79,29 @@ export default function EntryPage() {
   const newDrawersForCabinet = drawersForCabinet(newCabinetId);
   const destDrawersForCabinet = drawersForCabinet(destCabinetId || selectedTool?.cabinetId || "");
 
+  // Calculate pending reform for a tool
+  const getPendingReform = (toolId: string) => {
+    let out = 0;
+    for (const m of movements) {
+      if (m.toolId === toolId && m.type === "reform_send") out += m.quantity;
+      if (m.toolId === toolId && m.type === "reform_return") out -= m.quantity;
+    }
+    return Math.max(0, out);
+  };
+
+  // Get the latest reform_send movement for a tool (to show NF info)
+  const getLatestReformSend = (toolId: string) => {
+    return movements.find(m => m.toolId === toolId && m.type === "reform_send");
+  };
+
   const showSuccess = (msg: string) => {
     setSuccessMsg(msg);
     setSuccess(true);
-    setTimeout(() => setSuccess(false), 3000);
+    setTimeout(() => setSuccess(false), 5000);
   };
+
+  const pendingReform = selectedTool ? getPendingReform(selectedTool.id) : 0;
+  const latestReformSend = selectedTool ? getLatestReformSend(selectedTool.id) : null;
 
   // Handle existing tool entry
   const handleExistingEntry = (e: React.FormEvent) => {
@@ -108,26 +130,58 @@ export default function EntryPage() {
       )
     );
 
-    // Register movement
-    setMovements(prev => [
-      {
-        id: `mov-${Date.now()}`,
-        type: "entry" as const,
-        toolId: selectedTool.id,
-        userId: "eng-processo-1",
-        quantity: qty,
-        date: new Date().toISOString(),
-        notes: notes || `Entrada de ${qty} un. de ${selectedTool.code}`,
-      },
-      ...prev,
-    ]);
+    const entryNotes = [
+      invoiceNumber ? `NF: ${invoiceNumber}` : null,
+      notes || null,
+    ].filter(Boolean).join(" | ") || `Entrada de ${qty} un. de ${selectedTool.code}`;
 
-    showSuccess(`Entrada registrada: +${qty} un. de ${selectedTool.code} no ${getCabinetName(targetCabinetId)}`);
+    // Register entry movement
+    setMovements(prev => {
+      const newMovements = [
+        {
+          id: `mov-${Date.now()}`,
+          type: "entry" as const,
+          toolId: selectedTool.id,
+          userId: "eng-processo-1",
+          quantity: qty,
+          date: new Date().toISOString(),
+          notes: entryNotes,
+          invoiceNumber: invoiceNumber || undefined,
+        },
+        ...prev,
+      ];
+
+      // If tool has pending reform and NF was provided, automatically register reform_return
+      if (pendingReform > 0 && invoiceNumber) {
+        const returnQty = Math.min(qty, pendingReform);
+        newMovements.unshift({
+          id: `mov-${Date.now()}-ret`,
+          type: "reform_return" as const,
+          toolId: selectedTool.id,
+          userId: "eng-processo-1",
+          quantity: returnQty,
+          date: new Date().toISOString(),
+          notes: `Retorno de reforma - NF: ${invoiceNumber}${latestReformSend?.invoiceNumber ? ` | NF envio: ${latestReformSend.invoiceNumber}` : ""}`,
+          invoiceNumber: invoiceNumber,
+        });
+      }
+
+      return newMovements;
+    });
+
+    const reformMsg = pendingReform > 0 && invoiceNumber
+      ? ` | Baixa automatica na reforma: ${Math.min(qty, pendingReform)} un.`
+      : "";
+
+    showSuccess(
+      `Entrada registrada: +${qty} un. de ${selectedTool.code} no ${getCabinetName(targetCabinetId)}${invoiceNumber ? ` | NF: ${invoiceNumber}` : ""}${reformMsg}`
+    );
     setSelectedTool(null);
     setQuantity("");
     setDestCabinetId("");
     setDestDrawerId("");
     setDestPosition("");
+    setInvoiceNumber("");
     setNotes("");
     setSearchTerm("");
   };
@@ -146,19 +200,18 @@ export default function EntryPage() {
       description: newDescription,
       typeId: newTypeId,
       supplier: newSupplier,
-      statusId: "1", // Em Estoque
+      statusId: "1",
       cabinetId: newCabinetId,
       drawerId: newDrawerId,
       position: newPosition,
       quantity: qty,
-  minStock: Number(newMinStock) || 0,
-  unitValue: newUnitValue ? Number(newUnitValue) : undefined,
-  notes: newNotes,
-  };
+      minStock: Number(newMinStock) || 0,
+      unitValue: newUnitValue ? Number(newUnitValue) : undefined,
+      notes: newNotes,
+    };
 
     setTools(prev => [...prev, newTool]);
 
-    // Register movement if has quantity
     if (qty > 0) {
       setMovements(prev => [
         {
@@ -183,9 +236,9 @@ export default function EntryPage() {
     setNewDrawerId("");
     setNewPosition("");
     setNewQuantity("");
-  setNewMinStock("");
-  setNewUnitValue("");
-  setNewNotes("");
+    setNewMinStock("");
+    setNewUnitValue("");
+    setNewNotes("");
   };
 
   return (
@@ -207,7 +260,7 @@ export default function EntryPage() {
                 Entrada de Ferramentas
               </p>
               <p className="text-xs text-muted-foreground">
-                Adicione quantidade a ferramentas existentes ou cadastre novas ferramentas vinculadas a armarios especificos.
+                Adicione ferramentas ao estoque. Se a ferramenta possui reforma pendente e voce informar o numero da NF, o sistema dara baixa automatica na reforma.
               </p>
             </div>
           </CardContent>
@@ -216,7 +269,7 @@ export default function EntryPage() {
         {success && (
           <Card className="bg-success/10 border-success/30">
             <CardContent className="flex items-center gap-4 p-4">
-              <CheckCircle className="h-6 w-6 text-success" />
+              <CheckCircle className="h-6 w-6 text-success shrink-0" />
               <div>
                 <p className="font-medium text-foreground">Entrada Registrada!</p>
                 <p className="text-sm text-muted-foreground">{successMsg}</p>
@@ -263,43 +316,56 @@ export default function EntryPage() {
                         Nenhuma ferramenta encontrada
                       </p>
                     ) : searchTerm ? (
-                      filteredTools.map((tool) => (
-                        <div
-                          key={tool.id}
-                          onClick={() => {
-                            setSelectedTool(tool);
-                            setDestCabinetId(tool.cabinetId);
-                            setDestDrawerId(tool.drawerId);
-                            setDestPosition(tool.position);
-                          }}
-                          className={`flex items-center justify-between p-4 rounded-lg border cursor-pointer transition-colors ${
-                            selectedTool?.id === tool.id
-                              ? "border-primary bg-primary/5"
-                              : "border-border hover:border-primary/50"
-                          }`}
-                        >
-                          <div className="flex items-center gap-3">
-                            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-secondary">
-                              <Package className="h-5 w-5 text-muted-foreground" />
-                            </div>
-                            <div>
-                              <div className="flex flex-wrap items-center gap-1.5">
-                                <p className="font-mono font-medium">{tool.code}</p>
-                                <PriceTag value={tool.unitValue} />
+                      filteredTools.map((tool) => {
+                        const reformPending = getPendingReform(tool.id);
+                        return (
+                          <div
+                            key={tool.id}
+                            onClick={() => {
+                              setSelectedTool(tool);
+                              setDestCabinetId(tool.cabinetId);
+                              setDestDrawerId(tool.drawerId);
+                              setDestPosition(tool.position);
+                            }}
+                            className={`flex items-center justify-between p-4 rounded-lg border cursor-pointer transition-colors ${
+                              selectedTool?.id === tool.id
+                                ? "border-primary bg-primary/5"
+                                : "border-border hover:border-primary/50"
+                            }`}
+                          >
+                            <div className="flex items-center gap-3">
+                              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-secondary">
+                                {reformPending > 0 ? (
+                                  <Wrench className="h-5 w-5 text-orange-500" />
+                                ) : (
+                                  <Package className="h-5 w-5 text-muted-foreground" />
+                                )}
                               </div>
-                              <p className="text-sm text-muted-foreground truncate max-w-[200px]">
-                                {tool.description}
+                              <div>
+                                <div className="flex flex-wrap items-center gap-1.5">
+                                  <p className="font-mono font-medium">{tool.code}</p>
+                                  <PriceTag value={tool.unitValue} />
+                                </div>
+                                <p className="text-sm text-muted-foreground truncate max-w-[200px]">
+                                  {tool.description}
+                                </p>
+                                {reformPending > 0 && (
+                                  <p className="text-xs text-orange-500 flex items-center gap-1 mt-0.5">
+                                    <Wrench className="h-3 w-3" />
+                                    {reformPending} un. em reforma
+                                  </p>
+                                )}
+                              </div>
+                            </div>
+                            <div className="text-right">
+                              <Badge variant="secondary">{getTypeName(tool.typeId)}</Badge>
+                              <p className="text-xs text-muted-foreground mt-1">
+                                Qtd: {tool.quantity} | {getCabinetName(tool.cabinetId)}
                               </p>
                             </div>
                           </div>
-                          <div className="text-right">
-                            <Badge variant="secondary">{getTypeName(tool.typeId)}</Badge>
-                            <p className="text-xs text-muted-foreground mt-1">
-                              Qtd: {tool.quantity} | {getCabinetName(tool.cabinetId)}
-                            </p>
-                          </div>
-                        </div>
-                      ))
+                        );
+                      })
                     ) : (
                       <p className="text-center text-muted-foreground py-8">
                         Digite para buscar ferramentas
@@ -320,8 +386,12 @@ export default function EntryPage() {
                     {selectedTool ? (
                       <div className="p-4 rounded-lg bg-secondary">
                         <div className="flex items-center gap-3">
-                          <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-primary/10">
-                            <Package className="h-6 w-6 text-primary" />
+                          <div className={`flex h-12 w-12 items-center justify-center rounded-lg ${pendingReform > 0 ? "bg-orange-500/10" : "bg-primary/10"}`}>
+                            {pendingReform > 0 ? (
+                              <Wrench className="h-6 w-6 text-orange-500" />
+                            ) : (
+                              <Package className="h-6 w-6 text-primary" />
+                            )}
                           </div>
                           <div>
                             <div className="flex flex-wrap items-center gap-1.5">
@@ -340,6 +410,25 @@ export default function EntryPage() {
                             Estoque atual: <span className="font-bold">{selectedTool.quantity}</span>
                           </div>
                         </div>
+
+                        {/* Reform pending alert */}
+                        {pendingReform > 0 && (
+                          <div className="mt-3 p-3 rounded-lg bg-orange-500/10 border border-orange-500/20">
+                            <div className="flex items-center gap-2 text-sm font-medium text-orange-600">
+                              <AlertTriangle className="h-4 w-4 shrink-0" />
+                              {pendingReform} un. em reforma pendente
+                            </div>
+                            <p className="text-xs text-muted-foreground mt-1">
+                              Informe o numero da NF abaixo para dar baixa automatica na reforma.
+                            </p>
+                            {latestReformSend?.invoiceNumber && (
+                              <p className="text-xs text-muted-foreground mt-0.5">
+                                NF de envio: <span className="font-mono font-medium text-foreground">{latestReformSend.invoiceNumber}</span>
+                                {latestReformSend.supplier && <> | Fornecedor: {latestReformSend.supplier}</>}
+                              </p>
+                            )}
+                          </div>
+                        )}
                       </div>
                     ) : (
                       <div className="p-8 rounded-lg border border-dashed border-border text-center">
@@ -347,6 +436,32 @@ export default function EntryPage() {
                         <p className="text-muted-foreground">Selecione uma ferramenta ao lado</p>
                       </div>
                     )}
+
+                    {/* Invoice Number */}
+                    <div className="grid gap-2">
+                      <Label htmlFor="invoiceNumber" className="flex items-center gap-2">
+                        <FileText className="h-4 w-4 text-muted-foreground" />
+                        Numero da Nota Fiscal
+                        {pendingReform > 0 && (
+                          <Badge variant="outline" className="text-[10px] text-orange-600 border-orange-500/30">
+                            Dar baixa na reforma
+                          </Badge>
+                        )}
+                      </Label>
+                      <Input
+                        id="invoiceNumber"
+                        placeholder="Ex: NF-2026-001234"
+                        value={invoiceNumber}
+                        onChange={(e) => setInvoiceNumber(e.target.value)}
+                        disabled={!selectedTool}
+                        className={pendingReform > 0 ? "border-orange-500/30 focus-visible:ring-orange-500/30" : ""}
+                      />
+                      {pendingReform > 0 && (
+                        <p className="text-xs text-orange-500">
+                          Ao informar a NF, o sistema registrara automaticamente o retorno de {Math.min(Number(quantity) || pendingReform, pendingReform)} un. da reforma.
+                        </p>
+                      )}
+                    </div>
 
                     <div className="grid gap-2">
                       <Label htmlFor="qty">Quantidade *</Label>
@@ -433,6 +548,7 @@ export default function EntryPage() {
                     <Button type="submit" className="w-full" disabled={!selectedTool || !quantity || !destCabinetId}>
                       <Plus className="mr-2 h-4 w-4" />
                       Registrar Entrada
+                      {pendingReform > 0 && invoiceNumber && " e Baixa na Reforma"}
                     </Button>
                   </form>
                 </CardContent>
@@ -596,26 +712,26 @@ export default function EntryPage() {
                           type="number"
                           min="0"
                           placeholder="0"
-  value={newMinStock}
-  onChange={(e) => setNewMinStock(e.target.value)}
-  />
-  </div>
-  </div>
+                          value={newMinStock}
+                          onChange={(e) => setNewMinStock(e.target.value)}
+                        />
+                      </div>
+                    </div>
 
-  {/* Unit Value */}
-  <div className="grid gap-2">
-  <Label htmlFor="newUnitValue">Valor Unitario (R$)</Label>
-  <Input
-  id="newUnitValue"
-  type="number"
-  min="0"
-  step="0.01"
-  placeholder="0,00"
-  value={newUnitValue}
-  onChange={(e) => setNewUnitValue(e.target.value)}
-  />
-  <p className="text-xs text-muted-foreground">Opcional. Valor unitario da ferramenta em Reais.</p>
-  </div>
+                    {/* Unit Value */}
+                    <div className="grid gap-2 mt-4">
+                      <Label htmlFor="newUnitValue">Valor Unitario (R$)</Label>
+                      <Input
+                        id="newUnitValue"
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        placeholder="0,00"
+                        value={newUnitValue}
+                        onChange={(e) => setNewUnitValue(e.target.value)}
+                      />
+                      <p className="text-xs text-muted-foreground">Opcional. Valor unitario da ferramenta em Reais.</p>
+                    </div>
                   </div>
 
                   <div className="grid gap-2">
