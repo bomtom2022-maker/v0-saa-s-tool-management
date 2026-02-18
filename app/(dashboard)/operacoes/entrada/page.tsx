@@ -154,16 +154,20 @@ export default function EntryPage() {
       );
 
       if (existingReformedTool) {
-        // Add quantity to existing reformed tool record
+        // Add quantity to existing reformed tool AND subtract from original
         setTools(prev =>
-          prev.map(t =>
-            t.id === existingReformedTool.id
-              ? { ...t, quantity: t.quantity + qty }
-              : t
-          )
+          prev.map(t => {
+            if (t.id === existingReformedTool.id) {
+              return { ...t, quantity: t.quantity + qty };
+            }
+            if (t.id === selectedTool.id) {
+              return { ...t, quantity: Math.max(0, t.quantity - qty) };
+            }
+            return t;
+          })
         );
       } else {
-        // Create a brand new tool record for the reformed version
+        // Create a brand new tool record for the reformed version AND subtract from original
         const reformedTool = {
           ...selectedTool,
           id: newToolId,
@@ -174,7 +178,14 @@ export default function EntryPage() {
           position: targetPosition,
           reformCount: newReformCount,
         };
-        setTools(prev => [...prev, reformedTool]);
+        setTools(prev => [
+          ...prev.map(t =>
+            t.id === selectedTool.id
+              ? { ...t, quantity: Math.max(0, t.quantity - qty) }
+              : t
+          ),
+          reformedTool,
+        ]);
       }
 
       const nfRetorno = invoiceNumber || selectedReform.invoiceNumber || "";
@@ -195,8 +206,9 @@ export default function EntryPage() {
         ...prev,
       ]);
 
+      const originalRemaining = Math.max(0, selectedTool.quantity - qty);
       showSuccess(
-        `Retorno de reforma: +${qty} un. de ${newCode} no ${getCabinetName(targetCabinetId)} | Original ${selectedTool.code} permanece com ${selectedTool.quantity} un.${invoiceNumber ? ` | NF: ${invoiceNumber}` : ""}`
+        `Retorno de reforma: +${qty} un. de ${newCode} no ${getCabinetName(targetCabinetId)} | Original ${selectedTool.code} ficou com ${originalRemaining} un.${invoiceNumber ? ` | NF: ${invoiceNumber}` : ""}`
       );
     } else {
       // NORMAL ENTRY: add quantity to existing tool in its current/target cabinet
