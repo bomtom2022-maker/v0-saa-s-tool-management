@@ -158,9 +158,9 @@ export default function ReformaPage() {
                 </p>
               </div>
             </div>
-            <div className="hidden sm:flex items-center gap-2 text-sm font-mono bg-background rounded-lg px-3 py-2 border border-border">
+            <div className="hidden sm:flex items-center gap-2 text-sm font-mono bg-background rounded-lg px-3 py-2 border border-border" suppressHydrationWarning>
               <Clock className="h-4 w-4 text-primary" />
-              <span className="text-foreground">{formatDateTime(currentTime)}</span>
+              <span className="text-foreground" suppressHydrationWarning>{formatDateTime(currentTime)}</span>
             </div>
           </CardContent>
         </Card>

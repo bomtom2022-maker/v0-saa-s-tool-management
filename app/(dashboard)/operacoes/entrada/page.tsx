@@ -399,8 +399,8 @@ export default function EntryPage() {
                     {selectedTool ? (
                       <div className="p-4 rounded-lg bg-secondary">
                         <div className="flex items-center gap-3">
-                          <div className={`flex h-12 w-12 items-center justify-center rounded-lg ${pendingReform > 0 ? "bg-orange-500/10" : "bg-primary/10"}`}>
-                            {pendingReform > 0 ? (
+                          <div className={`flex h-12 w-12 items-center justify-center rounded-lg ${totalPendingReform > 0 ? "bg-orange-500/10" : "bg-primary/10"}`}>
+                            {totalPendingReform > 0 ? (
                               <Wrench className="h-6 w-6 text-orange-500" />
                             ) : (
                               <Package className="h-6 w-6 text-primary" />
