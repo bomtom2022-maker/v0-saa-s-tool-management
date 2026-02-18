@@ -61,7 +61,18 @@ export interface Tool {
   quantity: number;
   minStock: number;
   notes: string;
+  unitValue?: number; // unit price in BRL (optional)
   reformDate?: string; // ISO date string - next scheduled reform
+}
+
+export interface Supplier {
+  id: string;
+  name: string;
+  cnpj: string;
+  contact: string;
+  phone: string;
+  email: string;
+  isActive: boolean;
 }
 
 export interface Movement {
@@ -74,6 +85,7 @@ export interface Movement {
   notes: string;
   invoiceNumber?: string;
   supplier?: string;
+  estimatedReturn?: string; // ISO date - estimated return from reform
 }
 
 // Placeholder cabinets
@@ -121,9 +133,6 @@ export const mockStatuses: ToolStatus[] = [
 // Placeholder users
 export const mockUsers: User[] = [
   { id: 'eng-processo-1', name: 'Engenharia de Processo', email: 'engenharia.processo@empresa.com', role: 'Administrador', isActive: true },
-  { id: '2', name: 'Engenheiro Processo', email: 'engenharia@exemplo.com', role: 'Engenharia', isActive: true },
-  { id: '3', name: 'Comprador', email: 'compras@exemplo.com', role: 'Compras', isActive: true },
-  { id: '4', name: 'Operador CNC', email: 'operador@exemplo.com', role: 'Consulta', isActive: true },
 ];
 
 // Placeholder tools
@@ -155,10 +164,14 @@ export const mockMovements: Movement[] = [
   { id: '4', type: 'invoice', toolId: '2', userId: '3', quantity: 30, date: '2024-01-18T11:00:00', notes: 'Reposicao estoque', invoiceNumber: 'NF-12350', supplier: 'Fornecedor B' },
 ];
 
+// Placeholder suppliers
+export const mockSuppliers: Supplier[] = [
+  { id: 's1', name: 'Fornecedor A', cnpj: '12.345.678/0001-90', contact: 'Carlos Silva', phone: '(11) 99999-1111', email: 'vendas@fornecedora.com', isActive: true },
+  { id: 's2', name: 'Fornecedor B', cnpj: '98.765.432/0001-10', contact: 'Ana Souza', phone: '(11) 99999-2222', email: 'contato@fornecedorb.com', isActive: true },
+  { id: 's3', name: 'Fornecedor C', cnpj: '11.222.333/0001-44', contact: 'Roberto Lima', phone: '(11) 99999-3333', email: 'roberto@fornecedorc.com', isActive: true },
+];
+
 // Permission profiles
 export const mockProfiles = [
   { id: '1', name: 'Administrador', permissions: ['all', 'view', 'edit_tools', 'edit_cabinets', 'edit_types', 'move_stock', 'invoices', 'reform', 'reports', 'manage_users'] },
-  { id: '2', name: 'Engenharia', permissions: ['view', 'edit_tools', 'edit_cabinets', 'edit_types', 'move_stock', 'reform', 'reports'] },
-  { id: '3', name: 'Compras', permissions: ['view', 'invoices', 'reports'] },
-  { id: '4', name: 'Consulta', permissions: ['view'] },
 ];

@@ -138,8 +138,4 @@
   }
 }
 
-/* Prevent layout shift on navigation */
-main {
-  min-height: 100dvh;
-  contain: style;
-}
+

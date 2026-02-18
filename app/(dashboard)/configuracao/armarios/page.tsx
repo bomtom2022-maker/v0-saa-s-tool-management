@@ -67,6 +67,7 @@ import {
 import { DrawerForm } from "@/components/dashboard/drawer-form";
 import { useNotifications } from "@/lib/notifications";
 import { useDataStore } from "@/lib/data-store";
+import { PriceTag } from "@/components/dashboard/price-tag";
 
 export default function CabinetsPage() {
   const { addNotification, addNotificationsBatch } = useNotifications();
@@ -356,6 +357,7 @@ export default function CabinetsPage() {
       position: (formData.get("position") as string).toUpperCase(),
       quantity: Number(formData.get("quantity")),
       minStock: Number(formData.get("minStock")),
+      unitValue: formData.get("unitValue") ? Number(formData.get("unitValue")) : undefined,
       notes: formData.get("notes") as string || "",
       reformDate: (formData.get("reformDate") as string) || undefined,
     };
@@ -507,8 +509,11 @@ export default function CabinetsPage() {
                               key={tool.id}
                               className={`${isLowStock ? "bg-warning/5 hover:bg-warning/10" : "hover:bg-secondary/20"}`}
                             >
-                              <TableCell className="font-mono font-semibold text-foreground">
-                                {tool.code}
+                              <TableCell>
+                                <div className="flex flex-wrap items-center gap-1.5">
+                                  <span className="font-mono font-semibold text-foreground">{tool.code}</span>
+                                  <PriceTag value={tool.unitValue} />
+                                </div>
                               </TableCell>
                               <TableCell className="text-foreground">
                                 {tool.description}
@@ -994,6 +999,19 @@ export default function CabinetsPage() {
                           />
                         </div>
                         <div className="grid gap-2">
+                          <Label htmlFor="unitValue">Valor Unitario (R$)</Label>
+                          <Input
+                            id="unitValue"
+                            name="unitValue"
+                            type="number"
+                            min="0"
+                            step="0.01"
+                            placeholder="0,00"
+                            defaultValue={editingTool?.unitValue || ""}
+                          />
+                          <p className="text-xs text-muted-foreground">Opcional. Valor unitario em Reais.</p>
+                        </div>
+                        <div className="grid gap-2">
                           <Label htmlFor="statusId">Status</Label>
                           <Select name="statusId" defaultValue={editingTool?.statusId || "1"}>
                             <SelectTrigger>
@@ -1010,18 +1028,6 @@ export default function CabinetsPage() {
                             </SelectContent>
                           </Select>
                         </div>
-                      </div>
-                      <div className="grid gap-2">
-                        <Label htmlFor="reformDate">Data de Reforma</Label>
-                        <Input
-                          id="reformDate"
-                          name="reformDate"
-                          type="date"
-                          defaultValue={editingTool?.reformDate || ""}
-                        />
-                        <p className="text-xs text-muted-foreground">
-                          Quando a ferramenta precisa ser reformada. Voce sera notificado se atrasar.
-                        </p>
                       </div>
                       <div className="grid gap-2">
                         <Label htmlFor="notes">Observacoes</Label>
@@ -1280,9 +1286,10 @@ export default function CabinetsPage() {
                               </TableCell>
                               <TableCell>
                                 {tool ? (
-                                  <span className="font-mono font-semibold text-foreground">
-                                    {tool.code}
-                                  </span>
+                                  <div className="flex flex-wrap items-center gap-1.5">
+                                    <span className="font-mono font-semibold text-foreground">{tool.code}</span>
+                                    <PriceTag value={tool.unitValue} />
+                                  </div>
                                 ) : (
                                   <span className="text-muted-foreground italic text-sm">--</span>
                                 )}

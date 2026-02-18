@@ -65,6 +65,7 @@ import {
 } from "lucide-react";
 import { type Tool } from "@/lib/mock-data";
 import { useDataStore } from "@/lib/data-store";
+import { PriceTag } from "@/components/dashboard/price-tag";
 
 export default function CatalogPage() {
   const { tools, setTools, toolTypes, statuses, cabinets } = useDataStore();
@@ -403,7 +404,12 @@ export default function CatalogPage() {
                       const status = getStatusInfo(tool.statusId);
                       return (
                         <TableRow key={tool.id} className="hover:bg-secondary/30">
-                          <TableCell className="font-mono font-medium">{tool.code}</TableCell>
+                          <TableCell>
+                            <div className="flex flex-wrap items-center gap-1.5">
+                              <span className="font-mono font-medium">{tool.code}</span>
+                              <PriceTag value={tool.unitValue} />
+                            </div>
+                          </TableCell>
                           <TableCell className="max-w-[200px] truncate">{tool.description}</TableCell>
                           <TableCell>
                             <Badge variant="secondary">{getTypeName(tool.typeId)}</Badge>

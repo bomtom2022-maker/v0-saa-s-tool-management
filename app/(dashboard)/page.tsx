@@ -13,16 +13,29 @@ import {
   ArrowDownRight,
   TrendingUp,
   Clock,
+  DollarSign,
 } from "lucide-react";
 import { useDataStore } from "@/lib/data-store";
+import { PriceTag } from "@/components/dashboard/price-tag";
 
 export default function DashboardPage() {
   const { cabinets, tools, movements, statuses } = useDataStore();
 
-  // Calculate stats from shared store
-  const totalTools = cabinets.reduce((acc, cab) => acc + cab.totalTools, 0);
+  // Calculate stats dynamically from live tools data
+  const totalTools = tools.reduce((acc, t) => acc + t.quantity, 0);
+  const totalValue = tools.reduce((acc, t) => acc + (t.unitValue || 0) * t.quantity, 0);
   const lowStockTools = tools.filter((t) => t.quantity <= t.minStock).length;
-  const inReformTools = tools.filter((t) => t.statusId === "3").length;
+
+  // Calculate in-reform from movements (reform_send without matching reform_return)
+  const reformSends = movements.filter(m => m.type === "reform_send");
+  const reformReturns = movements.filter(m => m.type === "reform_return");
+  const reformSendQty = reformSends.reduce((acc, m) => acc + m.quantity, 0);
+  const reformReturnQty = reformReturns.reduce((acc, m) => acc + m.quantity, 0);
+  const inReformCount = Math.max(0, reformSendQty - reformReturnQty);
+
+  // Calculate tools per cabinet dynamically
+  const toolsPerCabinet = (cabinetId: string) =>
+    tools.filter((t) => t.cabinetId === cabinetId).reduce((acc, t) => acc + t.quantity, 0);
 
   return (
     <div className="min-h-screen">
@@ -33,13 +46,18 @@ export default function DashboardPage() {
 
       <div className="p-4 md:p-6 space-y-4 md:space-y-6">
         {/* Stats Grid */}
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
           <StatsCard
             title="Total de Ferramentas"
             value={totalTools}
             subtitle="Em todos os armarios"
             icon={Package}
-            trend={{ value: 12, isPositive: true }}
+          />
+          <StatsCard
+            title="Valor do Estoque"
+            value={`R$ ${totalValue.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`}
+            subtitle="Valor total das ferramentas"
+            icon={DollarSign}
           />
           <StatsCard
             title="Armarios Ativos"
@@ -56,8 +74,8 @@ export default function DashboardPage() {
           />
           <StatsCard
             title="Em Reforma"
-            value={inReformTools}
-            subtitle="Aguardando retorno"
+            value={inReformCount}
+            subtitle={`${reformSends.length} envios registrados`}
             icon={Wrench}
           />
         </div>
@@ -97,9 +115,12 @@ export default function DashboardPage() {
                           )}
                         </div>
                         <div>
-                          <p className="text-sm font-medium text-foreground">
-                            {tool?.code || "Ferramenta"} - {tool?.description || "Descricao"}
-                          </p>
+                          <div className="flex flex-wrap items-center gap-1.5">
+                            <p className="text-sm font-medium text-foreground">
+                              {tool?.code || "Ferramenta"} - {tool?.description || "Descricao"}
+                            </p>
+                            <PriceTag value={tool?.unitValue} />
+                          </div>
                           <p className="text-xs text-muted-foreground">
                             {movement.notes}
                           </p>
@@ -149,7 +170,7 @@ export default function DashboardPage() {
                     </div>
                     <div className="text-right">
                       <p className="text-sm font-semibold text-foreground">
-                        {cabinet.totalTools}
+                        {toolsPerCabinet(cabinet.id)}
                       </p>
                       <p className="text-xs text-muted-foreground">ferramentas</p>
                     </div>
@@ -197,23 +218,7 @@ export default function DashboardPage() {
           </Card>
         </div>
 
-        {/* Info Banner */}
-        <Card className="bg-primary/5 border-primary/20">
-          <CardContent className="flex items-center gap-4 p-4">
-            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
-              <Package className="h-5 w-5 text-primary" />
-            </div>
-            <div>
-              <p className="text-sm font-medium text-foreground">
-                Estrutura do Sistema
-              </p>
-              <p className="text-xs text-muted-foreground">
-                Este e um modelo estrutural. Todos os dados exibidos sao exemplos
-                fictcios para demonstracao do layout e navegacao do sistema SaaS.
-              </p>
-            </div>
-          </CardContent>
-        </Card>
+
       </div>
     </div>
   );

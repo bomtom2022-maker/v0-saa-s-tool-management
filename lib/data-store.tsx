@@ -1,6 +1,6 @@
 "use client";
 
-import React, { createContext, useContext, useState, useMemo } from "react";
+import React, { createContext, useContext, useState, useMemo, useEffect, useRef } from "react";
 import {
   mockCabinets,
   mockDrawers,
@@ -9,6 +9,7 @@ import {
   mockStatuses,
   mockToolTypes,
   mockUsers,
+  mockSuppliers,
   mockProfiles,
   type Cabinet,
   type Drawer,
@@ -17,6 +18,7 @@ import {
   type ToolStatus,
   type ToolType,
   type User,
+  type Supplier,
 } from "@/lib/mock-data";
 
 interface DataStore {
@@ -34,10 +36,14 @@ interface DataStore {
   setToolTypes: React.Dispatch<React.SetStateAction<ToolType[]>>;
   users: User[];
   setUsers: React.Dispatch<React.SetStateAction<User[]>>;
+  suppliers: Supplier[];
+  setSuppliers: React.Dispatch<React.SetStateAction<Supplier[]>>;
   profiles: typeof mockProfiles;
 }
 
 const DataStoreContext = createContext<DataStore | null>(null);
+
+const STORAGE_KEY = "tms-data-store";
 
 export function DataStoreProvider({ children }: { children: React.ReactNode }) {
   const [cabinets, setCabinets] = useState<Cabinet[]>(mockCabinets);
@@ -47,6 +53,47 @@ export function DataStoreProvider({ children }: { children: React.ReactNode }) {
   const [statuses, setStatuses] = useState<ToolStatus[]>(mockStatuses);
   const [toolTypes, setToolTypes] = useState<ToolType[]>(mockToolTypes);
   const [users, setUsers] = useState<User[]>(mockUsers);
+  const [suppliers, setSuppliers] = useState<Supplier[]>(mockSuppliers);
+
+  // Load persisted data on mount (client only)
+  const hasLoaded = useRef(false);
+  useEffect(() => {
+    if (hasLoaded.current) return;
+    hasLoaded.current = true;
+    try {
+      const raw = sessionStorage.getItem(STORAGE_KEY);
+      if (raw) {
+        const data = JSON.parse(raw);
+        if (data.cabinets) setCabinets(data.cabinets);
+        if (data.drawers) setDrawers(data.drawers);
+        if (data.tools) setTools(data.tools);
+        if (data.movements) setMovements(data.movements);
+        if (data.statuses) setStatuses(data.statuses);
+        if (data.toolTypes) setToolTypes(data.toolTypes);
+        if (data.users) setUsers(data.users);
+        if (data.suppliers) setSuppliers(data.suppliers);
+      }
+    } catch {
+      // ignore
+    }
+  }, []);
+
+  // Persist state to sessionStorage on every change
+  const isFirstRender = useRef(true);
+  useEffect(() => {
+    if (isFirstRender.current) {
+      isFirstRender.current = false;
+      return;
+    }
+    try {
+      sessionStorage.setItem(
+        STORAGE_KEY,
+        JSON.stringify({ cabinets, drawers, tools, movements, statuses, toolTypes, users, suppliers })
+      );
+    } catch {
+      // ignore quota errors
+    }
+  }, [cabinets, drawers, tools, movements, statuses, toolTypes, users, suppliers]);
 
   const value = useMemo(
     () => ({
@@ -64,9 +111,11 @@ export function DataStoreProvider({ children }: { children: React.ReactNode }) {
       setToolTypes,
       users,
       setUsers,
+      suppliers,
+      setSuppliers,
       profiles: mockProfiles,
     }),
-    [cabinets, drawers, tools, movements, statuses, toolTypes, users]
+    [cabinets, drawers, tools, movements, statuses, toolTypes, users, suppliers]
   );
 
   return (
