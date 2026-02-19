@@ -99,6 +99,8 @@ export default function CatalogPage() {
       position: formData.get("position") as string,
       quantity: Number(formData.get("quantity")) || 0,
       minStock: Number(formData.get("minStock")) || 0,
+      unitValue: formData.get("unitValue") ? Number(formData.get("unitValue")) : undefined,
+      reformUnitValue: formData.get("reformUnitValue") ? Number(formData.get("reformUnitValue")) : undefined,
       notes: formData.get("notes") as string,
     };
 
@@ -348,6 +350,37 @@ export default function CatalogPage() {
                             />
                           </div>
                         </div>
+                        <div className="grid grid-cols-2 gap-4">
+                          <div className="grid gap-2">
+                            <Label htmlFor="unitValue">Valor Nova (R$)</Label>
+                            <Input
+                              id="unitValue"
+                              name="unitValue"
+                              type="number"
+                              min="0"
+                              step="0.01"
+                              placeholder="0,00"
+                              defaultValue={editingTool?.unitValue || ""}
+                            />
+                            <p className="text-xs text-muted-foreground">Preco da ferramenta nova.</p>
+                          </div>
+                          <div className="grid gap-2">
+                            <Label htmlFor="reformUnitValue" className="flex items-center gap-1.5">
+                              Valor Reforma (R$)
+                              <span className="text-sky-400 text-[10px] font-mono">R</span>
+                            </Label>
+                            <Input
+                              id="reformUnitValue"
+                              name="reformUnitValue"
+                              type="number"
+                              min="0"
+                              step="0.01"
+                              placeholder="0,00"
+                              defaultValue={editingTool?.reformUnitValue || ""}
+                            />
+                            <p className="text-xs text-muted-foreground">Preco apos reforma/recondicionamento.</p>
+                          </div>
+                        </div>
                         <div className="grid gap-2">
                           <Label htmlFor="notes">Observacoes</Label>
                           <Textarea
@@ -415,7 +448,7 @@ export default function CatalogPage() {
                           <TableCell>
                             <div className="flex flex-wrap items-center gap-1.5">
                               <ToolCodeDisplay code={tool.code} className="font-medium" />
-                              <PriceTag value={tool.unitValue} />
+                              <PriceTag value={tool.unitValue} reformValue={tool.reformUnitValue} />
                             </div>
                           </TableCell>
                           <TableCell className="max-w-[200px] truncate">{tool.description}</TableCell>

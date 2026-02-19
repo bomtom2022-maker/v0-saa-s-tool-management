@@ -120,7 +120,7 @@ export default function DashboardPage() {
                             <p className="text-sm font-medium text-foreground">
                               {tool?.code ? <ToolCodeDisplay code={tool.code} className="font-medium" /> : "Ferramenta"}{" - "}{tool?.description || "Descricao"}
                             </p>
-                            <PriceTag value={tool?.unitValue} />
+                            <PriceTag value={tool?.unitValue} reformValue={tool?.reformUnitValue} />
                           </div>
                           <p className="text-xs text-muted-foreground">
                             {movement.notes}

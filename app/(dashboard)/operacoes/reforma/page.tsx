@@ -239,7 +239,7 @@ export default function ReformaPage() {
                           <div>
                             <div className="flex flex-wrap items-center gap-1.5">
                               <ToolCodeDisplay code={tool.code} className="font-medium" />
-                              <PriceTag value={tool.unitValue} />
+                              <PriceTag value={tool.unitValue} reformValue={tool.reformUnitValue} />
                             </div>
                             <p className="text-sm text-muted-foreground truncate max-w-[180px]">
                               {tool.description}
@@ -290,7 +290,7 @@ export default function ReformaPage() {
                       <div>
                         <div className="flex flex-wrap items-center gap-1.5">
                           <ToolCodeDisplay code={selectedTool.code} className="font-bold" />
-                          <PriceTag value={selectedTool.unitValue} suffix="/un" />
+                          <PriceTag value={selectedTool.unitValue} reformValue={selectedTool.reformUnitValue} suffix="/un" />
                         </div>
                         <p className="text-sm text-muted-foreground">{selectedTool.description}</p>
                       </div>

@@ -366,6 +366,7 @@ export default function CabinetsPage() {
       quantity: Number(formData.get("quantity")),
       minStock: Number(formData.get("minStock")),
       unitValue: formData.get("unitValue") ? Number(formData.get("unitValue")) : undefined,
+      reformUnitValue: formData.get("reformUnitValue") ? Number(formData.get("reformUnitValue")) : undefined,
       notes: formData.get("notes") as string || "",
       reformDate: (formData.get("reformDate") as string) || undefined,
     };
@@ -520,7 +521,7 @@ export default function CabinetsPage() {
                               <TableCell>
                                 <div className="flex flex-wrap items-center gap-1.5">
                               <ToolCodeDisplay code={tool.code} className="font-semibold text-foreground" />
-                              <PriceTag value={tool.unitValue} />
+                              <PriceTag value={tool.unitValue} reformValue={tool.reformUnitValue} />
                                 </div>
                               </TableCell>
                               <TableCell className="text-foreground">
@@ -1021,18 +1022,34 @@ export default function CabinetsPage() {
                             required
                           />
                         </div>
-                        <div className="grid gap-2">
-                          <Label htmlFor="unitValue">Valor Unitario (R$)</Label>
-                          <Input
-                            id="unitValue"
-                            name="unitValue"
-                            type="number"
-                            min="0"
-                            step="0.01"
-                            placeholder="0,00"
-                            defaultValue={editingTool?.unitValue || ""}
-                          />
-                          <p className="text-xs text-muted-foreground">Opcional. Valor unitario em Reais.</p>
+                        <div className="grid grid-cols-2 gap-4">
+                          <div className="grid gap-2">
+                            <Label htmlFor="unitValue">Valor Nova (R$)</Label>
+                            <Input
+                              id="unitValue"
+                              name="unitValue"
+                              type="number"
+                              min="0"
+                              step="0.01"
+                              placeholder="0,00"
+                              defaultValue={editingTool?.unitValue || ""}
+                            />
+                          </div>
+                          <div className="grid gap-2">
+                            <Label htmlFor="reformUnitValue" className="flex items-center gap-1.5">
+                              Valor Reforma (R$)
+                              <span className="text-sky-400 text-[10px] font-mono">R</span>
+                            </Label>
+                            <Input
+                              id="reformUnitValue"
+                              name="reformUnitValue"
+                              type="number"
+                              min="0"
+                              step="0.01"
+                              placeholder="0,00"
+                              defaultValue={editingTool?.reformUnitValue || ""}
+                            />
+                          </div>
                         </div>
                         <div className="grid gap-2">
                           <Label htmlFor="statusId">Status</Label>
@@ -1311,7 +1328,7 @@ export default function CabinetsPage() {
                                 {tool ? (
                                   <div className="flex flex-wrap items-center gap-1.5">
                                     <ToolCodeDisplay code={tool.code} className="font-semibold text-foreground" />
-                                    <PriceTag value={tool.unitValue} />
+                                    <PriceTag value={tool.unitValue} reformValue={tool.reformUnitValue} />
                                   </div>
                                 ) : (
                                   <span className="text-muted-foreground italic text-sm">--</span>

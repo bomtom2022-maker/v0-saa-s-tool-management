@@ -67,6 +67,7 @@ export default function EntryPage() {
   const [newQuantity, setNewQuantity] = useState("");
   const [newMinStock, setNewMinStock] = useState("");
   const [newUnitValue, setNewUnitValue] = useState("");
+  const [newReformUnitValue, setNewReformUnitValue] = useState("");
   const [newNotes, setNewNotes] = useState("");
 
   const newFilteredTools = newSearchTerm.length > 0
@@ -179,6 +180,8 @@ export default function EntryPage() {
           drawerId: targetDrawerId,
           position: targetPosition,
           reformCount: newReformCount,
+          // Use reform-specific value if available, otherwise keep original
+          unitValue: selectedTool.reformUnitValue || selectedTool.unitValue,
         };
         setTools(prev => [
           ...prev.map(t =>
@@ -310,6 +313,7 @@ export default function EntryPage() {
         quantity: qty,
         minStock: Number(newMinStock) || 0,
         unitValue: newUnitValue ? Number(newUnitValue) : undefined,
+        reformUnitValue: newReformUnitValue ? Number(newReformUnitValue) : undefined,
         notes: newNotes,
       };
 
@@ -345,6 +349,7 @@ export default function EntryPage() {
     setNewQuantity("");
     setNewMinStock("");
     setNewUnitValue("");
+    setNewReformUnitValue("");
     setNewNotes("");
   };
 
@@ -453,8 +458,8 @@ export default function EntryPage() {
                               <div>
                                 <div className="flex flex-wrap items-center gap-1.5">
                                   <ToolCodeDisplay code={tool.code} className="font-medium" />
-                                  <PriceTag value={tool.unitValue} />
-                                </div>
+<PriceTag value={tool.unitValue} reformValue={tool.reformUnitValue} />
+                                  </div>
                                 <p className="text-sm text-muted-foreground truncate max-w-[200px]">
                                   {tool.description}
                                 </p>
@@ -505,7 +510,7 @@ export default function EntryPage() {
                           <div>
                             <div className="flex flex-wrap items-center gap-1.5">
                               <ToolCodeDisplay code={selectedTool.code} className="font-bold" />
-                              <PriceTag value={selectedTool.unitValue} suffix="/un" />
+                              <PriceTag value={selectedTool.unitValue} reformValue={selectedTool.reformUnitValue} suffix="/un" />
                             </div>
                             <p className="text-sm text-muted-foreground">{selectedTool.description}</p>
                           </div>
@@ -826,7 +831,7 @@ export default function EntryPage() {
                             <div>
                               <div className="flex flex-wrap items-center gap-1.5">
                                 <ToolCodeDisplay code={tool.code} className="font-medium text-sm" />
-                                <PriceTag value={tool.unitValue} />
+                                <PriceTag value={tool.unitValue} reformValue={tool.reformUnitValue} />
                               </div>
                               <p className="text-xs text-muted-foreground truncate max-w-[180px]">
                                 {tool.description}
@@ -879,7 +884,7 @@ export default function EntryPage() {
                             <div>
                               <div className="flex flex-wrap items-center gap-1.5">
                                 <ToolCodeDisplay code={newSelectedTool.code} className="font-bold" />
-                                <PriceTag value={newSelectedTool.unitValue} suffix="/un" />
+                                <PriceTag value={newSelectedTool.unitValue} reformValue={newSelectedTool.reformUnitValue} suffix="/un" />
                               </div>
                               <p className="text-sm text-muted-foreground">{newSelectedTool.description}</p>
                             </div>
@@ -1045,7 +1050,7 @@ export default function EntryPage() {
                             />
                           </div>
                           <div className="grid gap-2">
-                            <Label htmlFor="newUnitValue">Valor Unitario (R$)</Label>
+                            <Label htmlFor="newUnitValue">Valor Nova (R$)</Label>
                             <Input
                               id="newUnitValue"
                               type="number"
@@ -1054,6 +1059,21 @@ export default function EntryPage() {
                               placeholder="0,00"
                               value={newUnitValue}
                               onChange={(e) => setNewUnitValue(e.target.value)}
+                            />
+                          </div>
+                          <div className="grid gap-2">
+                            <Label htmlFor="newReformUnitValue" className="flex items-center gap-1.5">
+                              Valor Reforma (R$)
+                              <span className="text-sky-400 text-[10px] font-mono">R</span>
+                            </Label>
+                            <Input
+                              id="newReformUnitValue"
+                              type="number"
+                              min="0"
+                              step="0.01"
+                              placeholder="0,00"
+                              value={newReformUnitValue}
+                              onChange={(e) => setNewReformUnitValue(e.target.value)}
                             />
                           </div>
                         </div>

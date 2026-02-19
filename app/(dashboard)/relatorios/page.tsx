@@ -152,6 +152,7 @@ export default function ReportsPage() {
       quantity: Number(fd.get("quantity")) || editingTool.quantity,
       minStock: Number(fd.get("minStock")) || editingTool.minStock,
       unitValue: fd.get("unitValue") ? Number(fd.get("unitValue")) : undefined,
+    reformUnitValue: fd.get("reformUnitValue") ? Number(fd.get("reformUnitValue")) : undefined,
     };
     setTools(prev => prev.map(t => t.id === updated.id ? updated : t));
     setEditingTool(null);
@@ -379,7 +380,10 @@ export default function ReportsPage() {
                               <span className={isLow ? "text-warning font-bold" : "font-medium"}>{tool.quantity}</span>
                             </TableCell>
                             <TableCell className="text-center text-muted-foreground">{tool.minStock}</TableCell>
-                            <TableCell className="text-right text-sm">{formatCurrency(tool.unitValue)}</TableCell>
+                            <TableCell className="text-right text-sm">
+                              {formatCurrency(tool.unitValue)}
+                              {tool.reformUnitValue ? <span className="block text-sky-400 text-[11px]">R {formatCurrency(tool.reformUnitValue)}</span> : null}
+                            </TableCell>
                             <TableCell className="text-right text-sm font-medium">{tool.unitValue ? formatCurrency(tool.unitValue * tool.quantity) : "-"}</TableCell>
                             <TableCell>
                               <div className="flex items-center gap-2">
@@ -450,7 +454,10 @@ export default function ReportsPage() {
                             <TableCell className="text-center text-warning font-bold">{tool.quantity}</TableCell>
                             <TableCell className="text-center">{tool.minStock}</TableCell>
                             <TableCell className="text-center"><Badge variant="destructive">{Math.max(0, tool.minStock - tool.quantity)}</Badge></TableCell>
-                            <TableCell className="text-right text-sm">{formatCurrency(tool.unitValue)}</TableCell>
+                            <TableCell className="text-right text-sm">
+                              {formatCurrency(tool.unitValue)}
+                              {tool.reformUnitValue ? <span className="block text-sky-400 text-[11px]">R {formatCurrency(tool.reformUnitValue)}</span> : null}
+                            </TableCell>
                           </TableRow>
                         ))}
                       </TableBody>
@@ -720,9 +727,18 @@ export default function ReportsPage() {
                   <Input id="edit-min" name="minStock" type="number" min="0" defaultValue={editingTool.minStock} />
                 </div>
               </div>
-              <div className="grid gap-2">
-                <Label htmlFor="edit-value">Valor Unitario (R$)</Label>
-                <Input id="edit-value" name="unitValue" type="number" min="0" step="0.01" defaultValue={editingTool.unitValue || ""} placeholder="0,00" />
+              <div className="grid grid-cols-2 gap-4">
+                <div className="grid gap-2">
+                  <Label htmlFor="edit-value">Valor Nova (R$)</Label>
+                  <Input id="edit-value" name="unitValue" type="number" min="0" step="0.01" defaultValue={editingTool.unitValue || ""} placeholder="0,00" />
+                </div>
+                <div className="grid gap-2">
+                  <Label htmlFor="edit-reform-value" className="flex items-center gap-1.5">
+                    Valor Reforma (R$)
+                    <span className="text-sky-400 text-[10px] font-mono">R</span>
+                  </Label>
+                  <Input id="edit-reform-value" name="reformUnitValue" type="number" min="0" step="0.01" defaultValue={editingTool.reformUnitValue || ""} placeholder="0,00" />
+                </div>
               </div>
               <DialogFooter>
                 <Button type="button" variant="outline" onClick={() => setEditingTool(null)}>Cancelar</Button>
