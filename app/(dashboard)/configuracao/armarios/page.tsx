@@ -1310,7 +1310,7 @@ export default function CabinetsPage() {
                               <TableCell>
                                 {tool ? (
                                   <div className="flex flex-wrap items-center gap-1.5">
-                                    <span className="font-mono font-semibold text-foreground">{tool.code}</span>
+                                    <ToolCodeDisplay code={tool.code} className="font-semibold text-foreground" />
                                     <PriceTag value={tool.unitValue} />
                                   </div>
                                 ) : (
