@@ -80,14 +80,21 @@ export default function CatalogPage() {
   const handleSave = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const formData = new FormData(e.currentTarget);
+    const cabinetId = formData.get("cabinetId") as string;
+    const selectedCab = cabinets.find(c => c.id === cabinetId);
+    let rawCode = formData.get("code") as string;
+    // Auto-append "R" suffix if saving into a reform-only cabinet
+    if (selectedCab?.isReformOnly && !rawCode.endsWith("R")) {
+      rawCode = rawCode + "R";
+    }
     const newTool: Tool = {
       id: editingTool?.id || String(Date.now()),
-      code: formData.get("code") as string,
+      code: rawCode,
       description: formData.get("description") as string,
       typeId: formData.get("typeId") as string,
       supplier: formData.get("supplier") as string,
       statusId: "1",
-      cabinetId: formData.get("cabinetId") as string,
+      cabinetId: cabinetId,
       drawerId: "1",
       position: formData.get("position") as string,
       quantity: Number(formData.get("quantity")) || 0,

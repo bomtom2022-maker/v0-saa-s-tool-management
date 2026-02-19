@@ -348,9 +348,14 @@ export default function CabinetsPage() {
     e.preventDefault();
     if (!selectedCabinet) return;
     const formData = new FormData(e.currentTarget);
+    let rawCode = formData.get("code") as string;
+    // Auto-append "R" suffix if saving into a reform-only cabinet
+    if (selectedCabinet.isReformOnly && !rawCode.endsWith("R")) {
+      rawCode = rawCode + "R";
+    }
     const toolData: Tool = {
       id: editingTool?.id || String(Date.now()),
-      code: formData.get("code") as string,
+      code: rawCode,
       description: formData.get("description") as string,
       typeId: formData.get("typeId") as string,
       supplier: formData.get("supplier") as string,
