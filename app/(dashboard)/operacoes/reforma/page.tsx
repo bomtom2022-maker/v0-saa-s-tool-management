@@ -98,17 +98,9 @@ export default function ReformaPage() {
 
     const timestamp = new Date();
 
-    // Subtract from original tool stock when sending to reform
-    const clampedQty = Math.min(qty, selectedTool.quantity);
-    if (clampedQty <= 0) return;
-
-    setTools(prev =>
-      prev.map(t =>
-        t.id === selectedTool.id
-          ? { ...t, quantity: t.quantity - clampedQty }
-          : t
-      )
-    );
+    // Reform send does NOT subtract from cabinet stock.
+    // The tools going to reform come from machines (daily exits), not from the cabinet.
+    // Only reform_return (entrada) adds stock back to the reform cabinet.
 
     const supplierName = suppliers.find(s => s.id === selectedSupplierId)?.name || "";
     const movementNotes = [
@@ -123,7 +115,7 @@ export default function ReformaPage() {
         type: "reform_send" as const,
         toolId: selectedTool.id,
         userId: "eng-processo-1",
-        quantity: clampedQty,
+        quantity: qty,
         date: timestamp.toISOString(),
         notes: movementNotes || "Enviado para reforma",
         invoiceNumber: notaNumber || undefined,
@@ -133,9 +125,8 @@ export default function ReformaPage() {
       ...prev,
     ]);
 
-    const remainingStock = selectedTool.quantity - clampedQty;
     setSuccessMsg(
-      `Reforma registrada em ${formatDateTime(timestamp)}: ${clampedQty} un. de ${selectedTool.code} enviada(s) para reforma${supplierName ? ` | Fornecedor: ${supplierName}` : ""}${notaNumber ? ` | Nota: ${notaNumber}` : ""} | Estoque restante: ${remainingStock}`
+      `Reforma registrada em ${formatDateTime(timestamp)}: ${qty} un. de ${selectedTool.code} enviada(s) para reforma${supplierName ? ` | Fornecedor: ${supplierName}` : ""}${notaNumber ? ` | Nota: ${notaNumber}` : ""} | Estoque no armario: ${selectedTool.quantity} (sem alteracao)`
     );
     setSuccess(true);
     setTimeout(() => setSuccess(false), 5000);
@@ -168,7 +159,7 @@ export default function ReformaPage() {
                   Envio para Reforma
                 </p>
                 <p className="text-xs text-muted-foreground">
-                  Aponte de onde a ferramenta esta saindo (armario/gaveta/posicao). O estoque no armario nao sera alterado pois as ferramentas sao novas.
+                  Registre o envio de ferramentas usadas (vindas das maquinas) para reforma. O estoque do armario nao e alterado.
                 </p>
               </div>
             </div>
@@ -316,9 +307,9 @@ export default function ReformaPage() {
                         {getDrawerLabel(selectedTool.drawerId)} / Pos. {selectedTool.position}
                       </div>
                       <div className="flex items-center gap-1">
-                        {"Estoque: "}
+                        {"Estoque armario: "}
                         <span className="font-bold">{selectedTool.quantity}</span>
-                        <span className="text-xs text-muted-foreground">(nao sera alterado)</span>
+                        <span className="text-xs text-muted-foreground">(nao altera)</span>
                       </div>
                     </div>
                     {getReformCount(selectedTool.id) > 0 && (

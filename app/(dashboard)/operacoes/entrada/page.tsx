@@ -169,7 +169,8 @@ export default function EntryPage() {
       );
 
       if (existingReformedTool) {
-        // Add quantity to existing reformed tool (original was already subtracted on reform_send)
+        // Add quantity to existing reformed tool in reform cabinet
+        // Reform comes from machines, NOT from cabinet stock - only adds to reform cabinet
         setTools(prev =>
           prev.map(t => {
             if (t.id === existingReformedTool.id) {
@@ -179,7 +180,7 @@ export default function EntryPage() {
           })
         );
       } else {
-        // Create a brand new tool record for the reformed version (original was already subtracted on reform_send)
+        // Create a brand new reformed tool in reform cabinet (original stock unchanged)
         const reformedTool = {
           ...selectedTool,
           id: newToolId,
