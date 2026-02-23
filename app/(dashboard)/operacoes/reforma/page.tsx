@@ -98,7 +98,18 @@ export default function ReformaPage() {
 
     const timestamp = new Date();
 
-    // Register reform movement - does NOT subtract from cabinet stock
+    // Subtract from original tool stock when sending to reform
+    const clampedQty = Math.min(qty, selectedTool.quantity);
+    if (clampedQty <= 0) return;
+
+    setTools(prev =>
+      prev.map(t =>
+        t.id === selectedTool.id
+          ? { ...t, quantity: t.quantity - clampedQty }
+          : t
+      )
+    );
+
     const supplierName = suppliers.find(s => s.id === selectedSupplierId)?.name || "";
     const movementNotes = [
       notaNumber ? `Nota: ${notaNumber}` : null,
@@ -112,7 +123,7 @@ export default function ReformaPage() {
         type: "reform_send" as const,
         toolId: selectedTool.id,
         userId: "eng-processo-1",
-        quantity: qty,
+        quantity: clampedQty,
         date: timestamp.toISOString(),
         notes: movementNotes || "Enviado para reforma",
         invoiceNumber: notaNumber || undefined,
@@ -122,8 +133,9 @@ export default function ReformaPage() {
       ...prev,
     ]);
 
+    const remainingStock = selectedTool.quantity - clampedQty;
     setSuccessMsg(
-      `Reforma registrada em ${formatDateTime(timestamp)}: ${qty} un. de ${selectedTool.code} enviada(s) para reforma${supplierName ? ` | Fornecedor: ${supplierName}` : ""}${notaNumber ? ` | Nota: ${notaNumber}` : ""} | Estoque no armario: ${selectedTool.quantity} (sem alteracao)`
+      `Reforma registrada em ${formatDateTime(timestamp)}: ${clampedQty} un. de ${selectedTool.code} enviada(s) para reforma${supplierName ? ` | Fornecedor: ${supplierName}` : ""}${notaNumber ? ` | Nota: ${notaNumber}` : ""} | Estoque restante: ${remainingStock}`
     );
     setSuccess(true);
     setTimeout(() => setSuccess(false), 5000);

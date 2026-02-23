@@ -144,8 +144,8 @@ export default function EntryPage() {
     e.preventDefault();
     if (!selectedTool || !quantity) return;
 
-    const qty = Number(quantity);
-    if (isNaN(qty) || qty <= 0) return;
+    const rawQty = Number(quantity);
+    if (isNaN(rawQty) || rawQty <= 0) return;
 
     const isReformReturn = !!selectedReform;
     const targetCabinetId = destCabinetId || selectedTool.cabinetId;
@@ -153,9 +153,11 @@ export default function EntryPage() {
     const targetPosition = destPosition || selectedTool.position;
 
     if (isReformReturn) {
+      // Clamp quantity to what is actually pending in this reform send - never return more than sent
+      const qty = Math.min(rawQty, selectedReform.remaining);
+      if (qty <= 0) return;
+
       // REFORM RETURN: create a NEW separate tool record with "R" suffix
-      // The original tool stays untouched in its original cabinet with its current quantity
-      // Always a single "R" suffix - strip existing R(s) first then add one R
       const baseCode = selectedTool.code.replace(/R+$/, "");
       const newCode = baseCode + "R";
       const newReformCount = (selectedTool.reformCount || 0) + 1;
@@ -167,20 +169,17 @@ export default function EntryPage() {
       );
 
       if (existingReformedTool) {
-        // Add quantity to existing reformed tool AND subtract from original
+        // Add quantity to existing reformed tool (original was already subtracted on reform_send)
         setTools(prev =>
           prev.map(t => {
             if (t.id === existingReformedTool.id) {
               return { ...t, quantity: t.quantity + qty };
             }
-            if (t.id === selectedTool.id) {
-              return { ...t, quantity: Math.max(0, t.quantity - qty) };
-            }
             return t;
           })
         );
       } else {
-        // Create a brand new tool record for the reformed version AND subtract from original
+        // Create a brand new tool record for the reformed version (original was already subtracted on reform_send)
         const reformedTool = {
           ...selectedTool,
           id: newToolId,
@@ -190,30 +189,21 @@ export default function EntryPage() {
           drawerId: targetDrawerId,
           position: targetPosition,
           reformCount: newReformCount,
-          // Use reform-specific value if available, otherwise keep original
           unitValue: selectedTool.reformUnitValue || selectedTool.unitValue,
         };
-        setTools(prev => [
-          ...prev.map(t =>
-            t.id === selectedTool.id
-              ? { ...t, quantity: Math.max(0, t.quantity - qty) }
-              : t
-          ),
-          reformedTool,
-        ]);
+        setTools(prev => [...prev, reformedTool]);
       }
 
       const nfRetorno = invoiceNumber || selectedReform.invoiceNumber || "";
-      const returnQty = Math.min(qty, selectedReform.remaining);
 
-      // Register reform_return movement - use ORIGINAL toolId so getPendingReforms can match sends to returns
+      // Register reform_return movement - qty is already clamped so it matches exactly
       setMovements(prev => [
         {
           id: `mov-${Date.now()}-ret`,
           type: "reform_return" as const,
           toolId: selectedTool.id,
           userId: "eng-processo-1",
-          quantity: returnQty,
+          quantity: qty,
           date: new Date().toISOString(),
           notes: `Retorno reforma - ${selectedTool.code} -> ${newCode} | NF retorno: ${nfRetorno || "N/A"} | NF envio: ${selectedReform.invoiceNumber || "N/A"}${selectedReform.supplier ? ` | Fornecedor: ${selectedReform.supplier}` : ""} | Destino: ${getCabinetName(targetCabinetId)}`,
           invoiceNumber: nfRetorno || undefined,
@@ -221,12 +211,12 @@ export default function EntryPage() {
         ...prev,
       ]);
 
-      const originalRemaining = Math.max(0, selectedTool.quantity - qty);
       showSuccess(
-        `Retorno de reforma: +${qty} un. de ${newCode} no ${getCabinetName(targetCabinetId)} | Original ${selectedTool.code} ficou com ${originalRemaining} un.${invoiceNumber ? ` | NF: ${invoiceNumber}` : ""}`
+        `Retorno de reforma: +${qty} un. de ${newCode} no ${getCabinetName(targetCabinetId)}${invoiceNumber ? ` | NF: ${invoiceNumber}` : ""}`
       );
     } else {
       // NORMAL ENTRY: add quantity to existing tool in its current/target cabinet
+      const qty = rawQty;
       setTools(prev =>
         prev.map(t =>
           t.id === selectedTool.id
@@ -685,16 +675,22 @@ export default function EntryPage() {
                     <div className="grid gap-2">
                       <Label htmlFor="qty">Quantidade *</Label>
                       <Input
-                        id="qty"
-                        type="number"
-                        min="1"
-                        placeholder="Quantidade de entrada"
-                        value={quantity}
-                        onChange={(e) => setQuantity(e.target.value)}
-                        required
-                        disabled={!selectedTool}
-                      />
-                    </div>
+  id="qty"
+  type="number"
+  min="1"
+  max={selectedReform ? selectedReform.remaining : undefined}
+  placeholder={selectedReform ? `Max: ${selectedReform.remaining}` : "Quantidade de entrada"}
+  value={quantity}
+  onChange={(e) => setQuantity(e.target.value)}
+  required
+  disabled={!selectedTool}
+  />
+  {selectedReform && (
+    <p className="text-xs text-sky-400 mt-1">
+      Maximo: {selectedReform.remaining} un. pendentes neste envio
+    </p>
+  )}
+  </div>
 
                     <div className="grid gap-2">
                       <Label className="flex items-center gap-2">
