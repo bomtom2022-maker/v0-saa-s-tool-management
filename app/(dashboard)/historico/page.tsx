@@ -199,21 +199,22 @@ export default function HistoryPage() {
       <div className="p-4 md:p-6 space-y-4 md:space-y-6">
         {/* Info Card */}
         <Card className="bg-primary/5 border-primary/20">
-          <CardContent className="flex items-center gap-4 p-4">
-            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
-              <History className="h-5 w-5 text-primary" />
+          <CardContent className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:gap-4">
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary/10">
+                <History className="h-5 w-5 text-primary" />
+              </div>
+              <div className="min-w-0">
+                <p className="text-sm font-medium text-foreground">
+                  Historico de Movimentacoes
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  Registros automaticos de todas as operacoes do sistema.
+                </p>
+              </div>
             </div>
-            <div>
-              <p className="text-sm font-medium text-foreground">
-                Historico de Movimentacoes
-              </p>
-              <p className="text-xs text-muted-foreground">
-                Todas as movimentacoes sao registradas automaticamente com usuario, data/hora, tipo e quantidade.
-                Use os filtros para localizar movimentacoes especificas. Dados prontos para integracao com Supabase.
-              </p>
-            </div>
-            <Badge variant="outline" className="ml-auto shrink-0">
-              {movements.length} registro(s) total
+            <Badge variant="outline" className="shrink-0 self-start sm:ml-auto sm:self-center">
+              {movements.length} registro(s)
             </Badge>
           </CardContent>
         </Card>
@@ -227,20 +228,22 @@ export default function HistoryPage() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-6">
-              <div className="lg:col-span-2 grid gap-2">
-                <Label>Busca</Label>
-                <div className="relative">
-                  <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                  <Input
-                    placeholder="Codigo, descricao, NF, fornecedor..."
-                    value={searchTerm}
-                    onChange={(e) => { setSearchTerm(e.target.value); setPage(1); }}
-                    className="pl-9"
-                  />
-                </div>
+            {/* Row 1: Search */}
+            <div className="grid gap-2">
+              <Label>Busca</Label>
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  placeholder="Codigo, descricao, NF, fornecedor..."
+                  value={searchTerm}
+                  onChange={(e) => { setSearchTerm(e.target.value); setPage(1); }}
+                  className="pl-9"
+                />
               </div>
+            </div>
 
+            {/* Row 2: Selects - 1 col mobile, 3 cols desktop */}
+            <div className="grid gap-4 grid-cols-1 sm:grid-cols-3 mt-4">
               <div className="grid gap-2">
                 <Label>Tipo</Label>
                 <Select value={filterType} onValueChange={(v) => { setFilterType(v); setPage(1); }}>
@@ -294,31 +297,34 @@ export default function HistoryPage() {
                   </SelectContent>
                 </Select>
               </div>
+            </div>
 
+            {/* Row 3: Date pickers - stacked on mobile */}
+            <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 mt-4">
               <div className="grid gap-2">
-                <Label>Periodo</Label>
-                <div className="flex gap-2">
-                  <Input
-                    type="date"
-                    value={dateFrom}
-                    onChange={(e) => { setDateFrom(e.target.value); setPage(1); }}
-                    className="flex-1"
-                  />
-                  <Input
-                    type="date"
-                    value={dateTo}
-                    onChange={(e) => { setDateTo(e.target.value); setPage(1); }}
-                    className="flex-1"
-                  />
-                </div>
+                <Label>Data Inicio</Label>
+                <Input
+                  type="date"
+                  value={dateFrom}
+                  onChange={(e) => { setDateFrom(e.target.value); setPage(1); }}
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label>Data Fim</Label>
+                <Input
+                  type="date"
+                  value={dateTo}
+                  onChange={(e) => { setDateTo(e.target.value); setPage(1); }}
+                />
               </div>
             </div>
 
-            <div className="flex justify-between mt-4">
-              <Button variant="outline" onClick={clearFilters}>
+            {/* Row 4: Actions */}
+            <div className="flex flex-col gap-2 mt-4 sm:flex-row sm:justify-between">
+              <Button variant="outline" onClick={clearFilters} className="w-full sm:w-auto">
                 Limpar Filtros
               </Button>
-              <Button variant="secondary" onClick={handleExport} disabled={filteredMovements.length === 0}>
+              <Button variant="secondary" onClick={handleExport} disabled={filteredMovements.length === 0} className="w-full sm:w-auto">
                 <Download className="mr-2 h-4 w-4" />
                 Exportar CSV ({filteredMovements.length})
               </Button>
@@ -327,94 +333,33 @@ export default function HistoryPage() {
         </Card>
 
         {/* Summary Cards */}
-        <div className="grid gap-4 grid-cols-2 md:grid-cols-4 lg:grid-cols-6">
-          <Card className="bg-card border-border">
-            <CardContent className="p-4">
-              <div className="flex items-center gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-success/10">
-                  <ArrowDownRight className="h-5 w-5 text-success" />
-                </div>
-                <div>
-                  <p className="text-xs text-muted-foreground">Entradas</p>
-                  <p className="text-xl font-bold">{stats.entries}</p>
-                  <p className="text-[11px] text-muted-foreground">+{stats.totalEntryQty} un.</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="bg-card border-border">
-            <CardContent className="p-4">
-              <div className="flex items-center gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-destructive/10">
-                  <ArrowUpRight className="h-5 w-5 text-destructive" />
-                </div>
-                <div>
-                  <p className="text-xs text-muted-foreground">Saidas</p>
-                  <p className="text-xl font-bold">{stats.exits}</p>
-                  <p className="text-[11px] text-muted-foreground">-{stats.totalExitQty} un.</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="bg-card border-border">
-            <CardContent className="p-4">
-              <div className="flex items-center gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-warning/10">
-                  <Wrench className="h-5 w-5 text-warning" />
-                </div>
-                <div>
-                  <p className="text-xs text-muted-foreground">Envios Reforma</p>
-                  <p className="text-xl font-bold">{stats.reformSends}</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="bg-card border-border">
-            <CardContent className="p-4">
-              <div className="flex items-center gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-sky-500/10">
-                  <RotateCcw className="h-5 w-5 text-sky-400" />
-                </div>
-                <div>
-                  <p className="text-xs text-muted-foreground">Retornos Reforma</p>
-                  <p className="text-xl font-bold">{stats.reformReturns}</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="bg-card border-border">
-            <CardContent className="p-4">
-              <div className="flex items-center gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-chart-2/10">
-                  <FileText className="h-5 w-5 text-chart-2" />
-                </div>
-                <div>
-                  <p className="text-xs text-muted-foreground">Notas Fiscais</p>
-                  <p className="text-xl font-bold">
-                    {filteredMovements.filter((m) => m.invoiceNumber).length}
-                  </p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="bg-card border-border">
-            <CardContent className="p-4">
-              <div className="flex items-center gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
-                  <History className="h-5 w-5 text-primary" />
-                </div>
-                <div>
-                  <p className="text-xs text-muted-foreground">Total Filtrado</p>
-                  <p className="text-xl font-bold">{filteredMovements.length}</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+        <div className="grid gap-3 grid-cols-2 sm:grid-cols-3 lg:grid-cols-6">
+          {[
+            { label: "Entradas", value: stats.entries, sub: `+${stats.totalEntryQty} un.`, icon: ArrowDownRight, color: "text-success", bg: "bg-success/10" },
+            { label: "Saidas", value: stats.exits, sub: `-${stats.totalExitQty} un.`, icon: ArrowUpRight, color: "text-destructive", bg: "bg-destructive/10" },
+            { label: "Env. Reforma", value: stats.reformSends, icon: Wrench, color: "text-warning", bg: "bg-warning/10" },
+            { label: "Ret. Reforma", value: stats.reformReturns, icon: RotateCcw, color: "text-sky-400", bg: "bg-sky-500/10" },
+            { label: "Notas Fiscais", value: filteredMovements.filter((m) => m.invoiceNumber).length, icon: FileText, color: "text-chart-2", bg: "bg-chart-2/10" },
+            { label: "Total Filtrado", value: filteredMovements.length, icon: History, color: "text-primary", bg: "bg-primary/10" },
+          ].map((stat) => {
+            const Icon = stat.icon;
+            return (
+              <Card key={stat.label} className="bg-card border-border">
+                <CardContent className="p-3 sm:p-4">
+                  <div className="flex items-center gap-2 sm:gap-3">
+                    <div className={`flex h-8 w-8 sm:h-10 sm:w-10 shrink-0 items-center justify-center rounded-lg ${stat.bg}`}>
+                      <Icon className={`h-4 w-4 sm:h-5 sm:w-5 ${stat.color}`} />
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-[11px] sm:text-xs text-muted-foreground truncate">{stat.label}</p>
+                      <p className="text-lg sm:text-xl font-bold leading-tight">{stat.value}</p>
+                      {stat.sub && <p className="text-[10px] sm:text-[11px] text-muted-foreground">{stat.sub}</p>}
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            );
+          })}
         </div>
 
         {/* Movements Table */}
@@ -430,7 +375,77 @@ export default function HistoryPage() {
             </div>
           </CardHeader>
           <CardContent>
-            <div className="rounded-lg border border-border overflow-hidden">
+            {/* Mobile card layout */}
+            <div className="space-y-3 sm:hidden">
+              {paginatedMovements.length === 0 ? (
+                <div className="flex flex-col items-center gap-2 py-12 text-muted-foreground">
+                  <History className="h-8 w-8 text-muted-foreground/50" />
+                  <p>Nenhuma movimentacao encontrada</p>
+                  <p className="text-xs">Ajuste os filtros ou realize uma operacao</p>
+                </div>
+              ) : (
+                paginatedMovements.map((movement) => {
+                  const tool = getTool(movement.toolId);
+                  const user = getUser(movement.userId);
+                  const cabinet = tool ? getCabinet(tool.cabinetId) : null;
+                  const typeInfo = getMovementType(movement.type);
+                  const TypeIcon = typeInfo.icon;
+                  const isPositive = movement.type === "entry" || movement.type === "invoice" || movement.type === "reform_return";
+
+                  return (
+                    <div
+                      key={movement.id}
+                      className="rounded-lg border border-border p-3 space-y-2 active:bg-secondary/30"
+                      onClick={() => setSelectedMovement(movement)}
+                    >
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <div className={`flex h-7 w-7 items-center justify-center rounded-lg ${typeInfo.bg}`}>
+                            <TypeIcon className={`h-3.5 w-3.5 ${typeInfo.color}`} />
+                          </div>
+                          <span className="text-sm font-medium">{typeInfo.label}</span>
+                        </div>
+                        <span className={`text-sm font-bold ${isPositive ? "text-success" : "text-destructive"}`}>
+                          {isPositive ? "+" : "-"}{movement.quantity}
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2 min-w-0">
+                          {tool?.code ? (
+                            <ToolCodeDisplay code={tool.code} className="text-sm font-medium" />
+                          ) : (
+                            <span className="font-mono text-xs text-muted-foreground">ID: {movement.toolId}</span>
+                          )}
+                        </div>
+                        <span className="text-xs text-muted-foreground shrink-0">
+                          {cabinet?.name || "N/A"}
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-between text-xs text-muted-foreground">
+                        <span>
+                          {new Date(movement.date).toLocaleDateString("pt-BR")}{" "}
+                          {new Date(movement.date).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}
+                        </span>
+                        <span className="truncate ml-2">{user?.name || movement.userId}</span>
+                      </div>
+                      {(movement.invoiceNumber || movement.supplier) && (
+                        <div className="flex items-center gap-2 flex-wrap">
+                          {movement.invoiceNumber && (
+                            <Badge variant="outline" className="text-[10px]">{movement.invoiceNumber}</Badge>
+                          )}
+                          {movement.supplier && (
+                            <span className="text-[11px] text-muted-foreground">{movement.supplier}</span>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })
+              )}
+            </div>
+
+            {/* Desktop table layout */}
+            <div className="hidden sm:block rounded-lg border border-border overflow-x-auto">
               <Table>
                 <TableHeader>
                   <TableRow className="bg-secondary/50 hover:bg-secondary/50">
@@ -570,8 +585,8 @@ export default function HistoryPage() {
 
             {/* Pagination */}
             {totalPages > 1 && (
-              <div className="flex items-center justify-between mt-4">
-                <p className="text-sm text-muted-foreground">
+              <div className="flex flex-col items-center gap-2 mt-4 sm:flex-row sm:justify-between">
+                <p className="text-xs sm:text-sm text-muted-foreground">
                   {(page - 1) * PAGE_SIZE + 1}-{Math.min(page * PAGE_SIZE, filteredMovements.length)} de {filteredMovements.length}
                 </p>
                 <div className="flex items-center gap-2">
@@ -583,7 +598,7 @@ export default function HistoryPage() {
                   >
                     <ChevronLeft className="h-4 w-4" />
                   </Button>
-                  <span className="text-sm font-medium px-2">
+                  <span className="text-xs sm:text-sm font-medium px-2">
                     {page} / {totalPages}
                   </span>
                   <Button
@@ -613,7 +628,7 @@ export default function HistoryPage() {
           const isPositive = selectedMovement.type === "entry" || selectedMovement.type === "invoice" || selectedMovement.type === "reform_return";
 
           return (
-            <DialogContent className="max-w-md">
+            <DialogContent className="max-w-[calc(100vw-2rem)] sm:max-w-md">
               <DialogHeader>
                 <DialogTitle className="flex items-center gap-2">
                   <div className={`flex h-8 w-8 items-center justify-center rounded-lg ${typeInfo.bg}`}>
