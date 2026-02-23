@@ -24,6 +24,7 @@ import {
 } from "lucide-react";
 import { useDataStore } from "@/lib/data-store";
 import type { Movement, Tool } from "@/lib/mock-data";
+import { ToolCodeDisplay } from "@/components/dashboard/tool-code-display";
 
 export default function ReportsPage() {
   const {
@@ -151,6 +152,7 @@ export default function ReportsPage() {
       quantity: Number(fd.get("quantity")) || editingTool.quantity,
       minStock: Number(fd.get("minStock")) || editingTool.minStock,
       unitValue: fd.get("unitValue") ? Number(fd.get("unitValue")) : undefined,
+    reformUnitValue: fd.get("reformUnitValue") ? Number(fd.get("reformUnitValue")) : undefined,
     };
     setTools(prev => prev.map(t => t.id === updated.id ? updated : t));
     setEditingTool(null);
@@ -370,7 +372,7 @@ export default function ReportsPage() {
                                 <Pencil className="h-3.5 w-3.5 text-muted-foreground" />
                               </Button>
                             </TableCell>
-                            <TableCell className="font-mono font-medium">{tool.code}</TableCell>
+                            <TableCell><ToolCodeDisplay code={tool.code} className="font-medium" /></TableCell>
                             <TableCell className="max-w-[180px] truncate">{tool.description}</TableCell>
                             <TableCell><Badge variant="secondary">{getTypeName(tool.typeId)}</Badge></TableCell>
                             <TableCell>{getCabinetName(tool.cabinetId)}</TableCell>
@@ -378,7 +380,10 @@ export default function ReportsPage() {
                               <span className={isLow ? "text-warning font-bold" : "font-medium"}>{tool.quantity}</span>
                             </TableCell>
                             <TableCell className="text-center text-muted-foreground">{tool.minStock}</TableCell>
-                            <TableCell className="text-right text-sm">{formatCurrency(tool.unitValue)}</TableCell>
+                            <TableCell className="text-right text-sm">
+                              {formatCurrency(tool.unitValue)}
+                              {tool.reformUnitValue ? <span className="block text-sky-400 text-[11px]">R {formatCurrency(tool.reformUnitValue)}</span> : null}
+                            </TableCell>
                             <TableCell className="text-right text-sm font-medium">{tool.unitValue ? formatCurrency(tool.unitValue * tool.quantity) : "-"}</TableCell>
                             <TableCell>
                               <div className="flex items-center gap-2">
@@ -443,13 +448,16 @@ export default function ReportsPage() {
                                 <Pencil className="h-3.5 w-3.5 text-muted-foreground" />
                               </Button>
                             </TableCell>
-                            <TableCell className="font-mono font-medium">{tool.code}</TableCell>
+                            <TableCell><ToolCodeDisplay code={tool.code} className="font-medium" /></TableCell>
                             <TableCell>{tool.description}</TableCell>
                             <TableCell>{getCabinetName(tool.cabinetId)}</TableCell>
                             <TableCell className="text-center text-warning font-bold">{tool.quantity}</TableCell>
                             <TableCell className="text-center">{tool.minStock}</TableCell>
                             <TableCell className="text-center"><Badge variant="destructive">{Math.max(0, tool.minStock - tool.quantity)}</Badge></TableCell>
-                            <TableCell className="text-right text-sm">{formatCurrency(tool.unitValue)}</TableCell>
+                            <TableCell className="text-right text-sm">
+                              {formatCurrency(tool.unitValue)}
+                              {tool.reformUnitValue ? <span className="block text-sky-400 text-[11px]">R {formatCurrency(tool.reformUnitValue)}</span> : null}
+                            </TableCell>
                           </TableRow>
                         ))}
                       </TableBody>
@@ -540,7 +548,7 @@ export default function ReportsPage() {
                                   <Badge variant="outline" className="gap-1 text-orange-500 border-orange-500/30"><Clock className="h-3 w-3" />Pendente</Badge>
                                 )}
                               </TableCell>
-                              <TableCell className="font-mono font-medium">{item.toolCode}</TableCell>
+                              <TableCell><ToolCodeDisplay code={item.toolCode} className="font-medium" /></TableCell>
                               <TableCell className="max-w-[150px] truncate">{item.toolDescription}</TableCell>
                               <TableCell className="text-xs text-muted-foreground">
                                 {item.cabinetName} {item.drawerLabel && `/ ${item.drawerLabel}`} {item.position && `/ ${item.position}`}
@@ -677,7 +685,7 @@ export default function ReportsPage() {
                               </TableCell>
                               <TableCell className="text-sm whitespace-nowrap">{formatDateTime(m.date)}</TableCell>
                               <TableCell><Badge className={`${typeColor} border-0`}>{typeLabel}</Badge></TableCell>
-                              <TableCell className="font-mono font-medium">{tool?.code || "N/A"}</TableCell>
+                              <TableCell>{tool?.code ? <ToolCodeDisplay code={tool.code} className="font-medium" /> : <span className="font-mono">N/A</span>}</TableCell>
                               <TableCell className="max-w-[150px] truncate">{tool?.description || "N/A"}</TableCell>
                               <TableCell className="text-center font-bold">{m.quantity}</TableCell>
                               <TableCell className="text-sm font-mono">{m.invoiceNumber || "-"}</TableCell>
@@ -705,7 +713,7 @@ export default function ReportsPage() {
           {editingTool && (
             <form onSubmit={handleSaveTool} className="space-y-4">
               <div className="p-3 rounded-lg bg-secondary">
-                <p className="font-mono font-bold">{editingTool.code}</p>
+                <ToolCodeDisplay code={editingTool.code} className="font-bold" />
                 <p className="text-sm text-muted-foreground">{editingTool.description}</p>
                 <p className="text-xs text-muted-foreground mt-1">{getCabinetName(editingTool.cabinetId)} / {getDrawerLabel(editingTool.drawerId)} / Pos. {editingTool.position}</p>
               </div>
@@ -719,9 +727,18 @@ export default function ReportsPage() {
                   <Input id="edit-min" name="minStock" type="number" min="0" defaultValue={editingTool.minStock} />
                 </div>
               </div>
-              <div className="grid gap-2">
-                <Label htmlFor="edit-value">Valor Unitario (R$)</Label>
-                <Input id="edit-value" name="unitValue" type="number" min="0" step="0.01" defaultValue={editingTool.unitValue || ""} placeholder="0,00" />
+              <div className="grid grid-cols-2 gap-4">
+                <div className="grid gap-2">
+                  <Label htmlFor="edit-value">Valor Nova (R$)</Label>
+                  <Input id="edit-value" name="unitValue" type="number" min="0" step="0.01" defaultValue={editingTool.unitValue || ""} placeholder="0,00" />
+                </div>
+                <div className="grid gap-2">
+                  <Label htmlFor="edit-reform-value" className="flex items-center gap-1.5">
+                    Valor Reforma (R$)
+                    <span className="text-sky-400 text-[10px] font-mono">R</span>
+                  </Label>
+                  <Input id="edit-reform-value" name="reformUnitValue" type="number" min="0" step="0.01" defaultValue={editingTool.reformUnitValue || ""} placeholder="0,00" />
+                </div>
               </div>
               <DialogFooter>
                 <Button type="button" variant="outline" onClick={() => setEditingTool(null)}>Cancelar</Button>
@@ -745,7 +762,7 @@ export default function ReportsPage() {
                 <p className="text-sm font-medium">
                   {editingMovement.type === "entry" ? "Entrada" : editingMovement.type === "exit" ? "Saida" : editingMovement.type === "reform_send" ? "Reforma (envio)" : editingMovement.type === "reform_return" ? "Reforma (retorno)" : "Nota Fiscal"}
                 </p>
-                <p className="text-xs text-muted-foreground">{getToolInfo(editingMovement.toolId)?.code} - {getToolInfo(editingMovement.toolId)?.description}</p>
+                <p className="text-xs text-muted-foreground">{getToolInfo(editingMovement.toolId)?.code ? <ToolCodeDisplay code={getToolInfo(editingMovement.toolId)!.code} className="text-xs" /> : "N/A"} - {getToolInfo(editingMovement.toolId)?.description}</p>
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div className="grid gap-2">

@@ -8,6 +8,7 @@ export interface Cabinet {
   location: string;
   drawersCount: number;
   totalTools: number;
+  isReformOnly?: boolean;
 }
 
 export interface Drawer {
@@ -61,8 +62,10 @@ export interface Tool {
   quantity: number;
   minStock: number;
   notes: string;
-  unitValue?: number; // unit price in BRL (optional)
+  unitValue?: number; // unit price in BRL - new tool (optional)
+  reformUnitValue?: number; // unit price in BRL - reformed tool (optional)
   reformDate?: string; // ISO date string - next scheduled reform
+  reformCount?: number; // number of times this tool has been reformed
 }
 
 export interface Supplier {
@@ -93,6 +96,8 @@ export const mockCabinets: Cabinet[] = [
   { id: '1', name: 'Armario Principal', description: 'Armario central de ferramentas', location: 'Galpao 1', drawersCount: 4, totalTools: 245 },
   { id: '2', name: 'Armario Reserva', description: 'Estoque de backup', location: 'Galpao 1', drawersCount: 3, totalTools: 89 },
   { id: '3', name: 'Armario Linha 2', description: 'Ferramentas da linha de producao 2', location: 'Galpao 2', drawersCount: 3, totalTools: 156 },
+  { id: 'ar-1', name: 'A-R', description: 'Armario exclusivo para ferramentas reformadas', location: 'Galpao 1', drawersCount: 4, totalTools: 0, isReformOnly: true },
+  { id: 'br-1', name: 'B-R', description: 'Armario exclusivo para ferramentas reformadas', location: 'Galpao 1', drawersCount: 3, totalTools: 0, isReformOnly: true },
 ];
 
 // Placeholder drawers
@@ -110,6 +115,15 @@ export const mockDrawers: Drawer[] = [
   { id: 'd8', cabinetId: '3', number: '1', positions: ['A', 'B', 'C', 'D'] },
   { id: 'd9', cabinetId: '3', number: '2', positions: ['A', 'B', 'C'] },
   { id: 'd10', cabinetId: '3', number: '3', positions: ['A', 'B'] },
+  // Armario A-R - Reformadas (id: ar-1)
+  { id: 'dar-1', cabinetId: 'ar-1', number: '1', positions: ['A', 'B', 'C', 'D'] },
+  { id: 'dar-2', cabinetId: 'ar-1', number: '2', positions: ['A', 'B', 'C', 'D'] },
+  { id: 'dar-3', cabinetId: 'ar-1', number: '3', positions: ['A', 'B', 'C'] },
+  { id: 'dar-4', cabinetId: 'ar-1', number: '4', positions: ['A', 'B', 'C', 'D', 'E'] },
+  // Armario B-R - Reformadas (id: br-1)
+  { id: 'dbr-1', cabinetId: 'br-1', number: '1', positions: ['A', 'B', 'C', 'D'] },
+  { id: 'dbr-2', cabinetId: 'br-1', number: '2', positions: ['A', 'B', 'C'] },
+  { id: 'dbr-3', cabinetId: 'br-1', number: '3', positions: ['A', 'B', 'C', 'D'] },
 ];
 
 // Placeholder tool types

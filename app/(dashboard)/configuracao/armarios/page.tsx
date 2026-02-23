@@ -68,6 +68,7 @@ import { DrawerForm } from "@/components/dashboard/drawer-form";
 import { useNotifications } from "@/lib/notifications";
 import { useDataStore } from "@/lib/data-store";
 import { PriceTag } from "@/components/dashboard/price-tag";
+import { ToolCodeDisplay } from "@/components/dashboard/tool-code-display";
 
 export default function CabinetsPage() {
   const { addNotification, addNotificationsBatch } = useNotifications();
@@ -203,6 +204,7 @@ export default function CabinetsPage() {
       location: formData.get("location") as string,
       drawersCount: editingCabinet?.drawersCount || 0,
       totalTools: editingCabinet?.totalTools || 0,
+      isReformOnly: editingCabinet?.isReformOnly,
     };
 
     if (editingCabinet) {
@@ -234,9 +236,10 @@ export default function CabinetsPage() {
     setEditingCabinet(null);
   };
 
-  // Delete cabinet
+  // Delete cabinet (reform-only cabinets are protected)
   const handleDeleteCabinet = (id: string) => {
     const cab = cabinets.find((c) => c.id === id);
+    if (cab?.isReformOnly) return;
     setCabinets(cabinets.filter((c) => c.id !== id));
     setDrawers(drawers.filter((d) => d.cabinetId !== id));
     setTools(tools.filter((t) => t.cabinetId !== id));
@@ -345,9 +348,14 @@ export default function CabinetsPage() {
     e.preventDefault();
     if (!selectedCabinet) return;
     const formData = new FormData(e.currentTarget);
+    let rawCode = formData.get("code") as string;
+    // Auto-append "R" suffix if saving into a reform-only cabinet
+    if (selectedCabinet.isReformOnly && !rawCode.endsWith("R")) {
+      rawCode = rawCode + "R";
+    }
     const toolData: Tool = {
       id: editingTool?.id || String(Date.now()),
-      code: formData.get("code") as string,
+      code: rawCode,
       description: formData.get("description") as string,
       typeId: formData.get("typeId") as string,
       supplier: formData.get("supplier") as string,
@@ -358,6 +366,7 @@ export default function CabinetsPage() {
       quantity: Number(formData.get("quantity")),
       minStock: Number(formData.get("minStock")),
       unitValue: formData.get("unitValue") ? Number(formData.get("unitValue")) : undefined,
+      reformUnitValue: formData.get("reformUnitValue") ? Number(formData.get("reformUnitValue")) : undefined,
       notes: formData.get("notes") as string || "",
       reformDate: (formData.get("reformDate") as string) || undefined,
     };
@@ -511,8 +520,8 @@ export default function CabinetsPage() {
                             >
                               <TableCell>
                                 <div className="flex flex-wrap items-center gap-1.5">
-                                  <span className="font-mono font-semibold text-foreground">{tool.code}</span>
-                                  <PriceTag value={tool.unitValue} />
+                              <ToolCodeDisplay code={tool.code} className="font-semibold text-foreground" />
+                              <PriceTag value={tool.unitValue} reformValue={tool.reformUnitValue} />
                                 </div>
                               </TableCell>
                               <TableCell className="text-foreground">
@@ -698,9 +707,16 @@ export default function CabinetsPage() {
                           <Archive className="h-6 w-6 text-primary" />
                         </div>
                         <div>
-                          <CardTitle className="text-lg">
-                            {cabinet.name}
-                          </CardTitle>
+                          <div className="flex items-center gap-2">
+                            <CardTitle className="text-lg">
+                              {cabinet.name}
+                            </CardTitle>
+                            {cabinet.isReformOnly && (
+                              <Badge className="bg-sky-500/20 text-sky-400 border-sky-500/30 text-[10px]">
+                                Reformadas
+                              </Badge>
+                            )}
+                          </div>
                           <div className="flex items-center gap-1 text-xs text-muted-foreground">
                             <MapPin className="h-3 w-3" />
                             {cabinet.location}
@@ -717,25 +733,33 @@ export default function CabinetsPage() {
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
-                          <DropdownMenuItem
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleEditCabinet(cabinet);
-                            }}
-                          >
-                            <Edit className="mr-2 h-4 w-4" />
-                            Editar
-                          </DropdownMenuItem>
-                          <DropdownMenuItem
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleDeleteCabinet(cabinet.id);
-                            }}
-                            className="text-destructive"
-                          >
-                            <Trash2 className="mr-2 h-4 w-4" />
-                            Excluir
-                          </DropdownMenuItem>
+                          {cabinet.isReformOnly ? (
+                            <DropdownMenuItem disabled className="text-muted-foreground text-xs">
+                              Armario protegido (somente reformadas)
+                            </DropdownMenuItem>
+                          ) : (
+                            <>
+                              <DropdownMenuItem
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleEditCabinet(cabinet);
+                                }}
+                              >
+                                <Edit className="mr-2 h-4 w-4" />
+                                Editar
+                              </DropdownMenuItem>
+                              <DropdownMenuItem
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleDeleteCabinet(cabinet.id);
+                                }}
+                                className="text-destructive"
+                              >
+                                <Trash2 className="mr-2 h-4 w-4" />
+                                Excluir
+                              </DropdownMenuItem>
+                            </>
+                          )}
                         </DropdownMenuContent>
                       </DropdownMenu>
                     </div>
@@ -998,18 +1022,34 @@ export default function CabinetsPage() {
                             required
                           />
                         </div>
-                        <div className="grid gap-2">
-                          <Label htmlFor="unitValue">Valor Unitario (R$)</Label>
-                          <Input
-                            id="unitValue"
-                            name="unitValue"
-                            type="number"
-                            min="0"
-                            step="0.01"
-                            placeholder="0,00"
-                            defaultValue={editingTool?.unitValue || ""}
-                          />
-                          <p className="text-xs text-muted-foreground">Opcional. Valor unitario em Reais.</p>
+                        <div className="grid grid-cols-2 gap-4">
+                          <div className="grid gap-2">
+                            <Label htmlFor="unitValue">Valor Nova (R$)</Label>
+                            <Input
+                              id="unitValue"
+                              name="unitValue"
+                              type="number"
+                              min="0"
+                              step="0.01"
+                              placeholder="0,00"
+                              defaultValue={editingTool?.unitValue || ""}
+                            />
+                          </div>
+                          <div className="grid gap-2">
+                            <Label htmlFor="reformUnitValue" className="flex items-center gap-1.5">
+                              Valor Reforma (R$)
+                              <span className="text-sky-400 text-[10px] font-mono">R</span>
+                            </Label>
+                            <Input
+                              id="reformUnitValue"
+                              name="reformUnitValue"
+                              type="number"
+                              min="0"
+                              step="0.01"
+                              placeholder="0,00"
+                              defaultValue={editingTool?.reformUnitValue || ""}
+                            />
+                          </div>
                         </div>
                         <div className="grid gap-2">
                           <Label htmlFor="statusId">Status</Label>
@@ -1287,8 +1327,8 @@ export default function CabinetsPage() {
                               <TableCell>
                                 {tool ? (
                                   <div className="flex flex-wrap items-center gap-1.5">
-                                    <span className="font-mono font-semibold text-foreground">{tool.code}</span>
-                                    <PriceTag value={tool.unitValue} />
+                                    <ToolCodeDisplay code={tool.code} className="font-semibold text-foreground" />
+                                    <PriceTag value={tool.unitValue} reformValue={tool.reformUnitValue} />
                                   </div>
                                 ) : (
                                   <span className="text-muted-foreground italic text-sm">--</span>

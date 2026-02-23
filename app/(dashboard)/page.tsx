@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import { useDataStore } from "@/lib/data-store";
 import { PriceTag } from "@/components/dashboard/price-tag";
+import { ToolCodeDisplay } from "@/components/dashboard/tool-code-display";
 
 export default function DashboardPage() {
   const { cabinets, tools, movements, statuses } = useDataStore();
@@ -117,9 +118,9 @@ export default function DashboardPage() {
                         <div>
                           <div className="flex flex-wrap items-center gap-1.5">
                             <p className="text-sm font-medium text-foreground">
-                              {tool?.code || "Ferramenta"} - {tool?.description || "Descricao"}
+                              {tool?.code ? <ToolCodeDisplay code={tool.code} className="font-medium" /> : "Ferramenta"}{" - "}{tool?.description || "Descricao"}
                             </p>
-                            <PriceTag value={tool?.unitValue} />
+                            <PriceTag value={tool?.unitValue} reformValue={tool?.reformUnitValue} />
                           </div>
                           <p className="text-xs text-muted-foreground">
                             {movement.notes}
@@ -161,9 +162,16 @@ export default function DashboardPage() {
                     className="flex items-center justify-between border-b border-border pb-4 last:border-0 last:pb-0"
                   >
                     <div>
-                      <p className="text-sm font-medium text-foreground">
-                        {cabinet.name}
-                      </p>
+                      <div className="flex items-center gap-2">
+                        <p className="text-sm font-medium text-foreground">
+                          {cabinet.name}
+                        </p>
+                        {cabinet.isReformOnly && (
+                          <span className="inline-flex items-center rounded-full bg-sky-500/20 px-1.5 py-0.5 text-[10px] font-medium text-sky-400 border border-sky-500/30">
+                            Reformadas
+                          </span>
+                        )}
+                      </div>
                       <p className="text-xs text-muted-foreground">
                         {cabinet.location} - {cabinet.drawersCount} gavetas
                       </p>

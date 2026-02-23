@@ -66,6 +66,7 @@ import {
 import { type Tool } from "@/lib/mock-data";
 import { useDataStore } from "@/lib/data-store";
 import { PriceTag } from "@/components/dashboard/price-tag";
+import { ToolCodeDisplay } from "@/components/dashboard/tool-code-display";
 
 export default function CatalogPage() {
   const { tools, setTools, toolTypes, statuses, cabinets } = useDataStore();
@@ -79,18 +80,27 @@ export default function CatalogPage() {
   const handleSave = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const formData = new FormData(e.currentTarget);
+    const cabinetId = formData.get("cabinetId") as string;
+    const selectedCab = cabinets.find(c => c.id === cabinetId);
+    let rawCode = formData.get("code") as string;
+    // Auto-append "R" suffix if saving into a reform-only cabinet
+    if (selectedCab?.isReformOnly && !rawCode.endsWith("R")) {
+      rawCode = rawCode + "R";
+    }
     const newTool: Tool = {
       id: editingTool?.id || String(Date.now()),
-      code: formData.get("code") as string,
+      code: rawCode,
       description: formData.get("description") as string,
       typeId: formData.get("typeId") as string,
       supplier: formData.get("supplier") as string,
       statusId: "1",
-      cabinetId: formData.get("cabinetId") as string,
+      cabinetId: cabinetId,
       drawerId: "1",
       position: formData.get("position") as string,
       quantity: Number(formData.get("quantity")) || 0,
       minStock: Number(formData.get("minStock")) || 0,
+      unitValue: formData.get("unitValue") ? Number(formData.get("unitValue")) : undefined,
+      reformUnitValue: formData.get("reformUnitValue") ? Number(formData.get("reformUnitValue")) : undefined,
       notes: formData.get("notes") as string,
     };
 
@@ -340,6 +350,37 @@ export default function CatalogPage() {
                             />
                           </div>
                         </div>
+                        <div className="grid grid-cols-2 gap-4">
+                          <div className="grid gap-2">
+                            <Label htmlFor="unitValue">Valor Nova (R$)</Label>
+                            <Input
+                              id="unitValue"
+                              name="unitValue"
+                              type="number"
+                              min="0"
+                              step="0.01"
+                              placeholder="0,00"
+                              defaultValue={editingTool?.unitValue || ""}
+                            />
+                            <p className="text-xs text-muted-foreground">Preco da ferramenta nova.</p>
+                          </div>
+                          <div className="grid gap-2">
+                            <Label htmlFor="reformUnitValue" className="flex items-center gap-1.5">
+                              Valor Reforma (R$)
+                              <span className="text-sky-400 text-[10px] font-mono">R</span>
+                            </Label>
+                            <Input
+                              id="reformUnitValue"
+                              name="reformUnitValue"
+                              type="number"
+                              min="0"
+                              step="0.01"
+                              placeholder="0,00"
+                              defaultValue={editingTool?.reformUnitValue || ""}
+                            />
+                            <p className="text-xs text-muted-foreground">Preco apos reforma/recondicionamento.</p>
+                          </div>
+                        </div>
                         <div className="grid gap-2">
                           <Label htmlFor="notes">Observacoes</Label>
                           <Textarea
@@ -406,8 +447,8 @@ export default function CatalogPage() {
                         <TableRow key={tool.id} className="hover:bg-secondary/30">
                           <TableCell>
                             <div className="flex flex-wrap items-center gap-1.5">
-                              <span className="font-mono font-medium">{tool.code}</span>
-                              <PriceTag value={tool.unitValue} />
+                              <ToolCodeDisplay code={tool.code} className="font-medium" />
+                              <PriceTag value={tool.unitValue} reformValue={tool.reformUnitValue} />
                             </div>
                           </TableCell>
                           <TableCell className="max-w-[200px] truncate">{tool.description}</TableCell>
@@ -489,7 +530,7 @@ export default function CatalogPage() {
                       <Package className="h-6 w-6 text-primary" />
                     </div>
                     <div>
-                      <p className="font-mono text-lg font-bold">{selectedTool.code}</p>
+                      <ToolCodeDisplay code={selectedTool.code} className="text-lg font-bold" />
                       <p className="text-sm text-muted-foreground">{selectedTool.description}</p>
                     </div>
                   </div>
