@@ -692,93 +692,116 @@ export default function EntryPage() {
   )}
   </div>
 
-                    <div className="grid gap-2">
-                      <Label className="flex items-center gap-2">
-                        Armario de Destino *
-                        {selectedReform && isReformDestLocked && (
-                          <Badge className="bg-sky-500/20 text-sky-400 border-sky-500/30 text-[10px]">
-                            Destino fixo
-                          </Badge>
-                        )}
-                        {selectedReform && !isReformDestLocked && (
-                          <Badge className="bg-sky-500/20 text-sky-400 border-sky-500/30 text-[10px]">
-                            Somente armarios de reforma
-                          </Badge>
-                        )}
-                      </Label>
-                      {isReformDestLocked ? (
-                        <div className="rounded-md border border-sky-500/30 bg-sky-500/5 p-3">
-                          <p className="text-sm font-medium">
-                            {getCabinetName(destCabinetId)} - Gaveta {drawers.find(d => d.id === destDrawerId)?.number || "?"} - Pos. {destPosition || "?"}
-                          </p>
-                          <p className="text-xs text-sky-400 mt-1">
-                            Destino fixo: ferramenta reformada {existingReformedToolForSelected?.code} ja esta cadastrada nesta gaveta.
-                          </p>
-                        </div>
-                      ) : (
-                        <Select
-                          value={destCabinetId}
-                          onValueChange={(v) => {
-                            setDestCabinetId(v);
-                            setDestDrawerId("");
-                            setDestPosition("");
-                          }}
-                          disabled={!selectedTool}
-                        >
-                          <SelectTrigger>
-                            <SelectValue placeholder="Selecione o armario" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {(selectedReform ? reformCabinets : normalCabinets).map((c) => (
-                              <SelectItem key={c.id} value={c.id}>
-                                {c.name} - {c.location}
-                                {c.isReformOnly ? " (Reformadas)" : ""}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      )}
-                      {selectedReform && !isReformDestLocked && (
-                        <p className="text-xs text-sky-400">
-                          Primeira reforma: selecione o armario e gaveta de destino. Proximos retornos irao automaticamente para o mesmo local.
-                        </p>
-                      )}
-                    </div>
+                    {(() => {
+                      // Determine if destination is locked:
+                      // 1. Reform return with existing reformed tool -> locked to reformed tool location
+                      // 2. Normal entry for tool that already has a cabinet/drawer/position -> locked to tool location
+                      const toolHasHome = selectedTool && selectedTool.cabinetId && selectedTool.drawerId;
+                      const isLocked = isReformDestLocked || (!selectedReform && toolHasHome);
+                      const lockedDrawer = drawers.find(d => d.id === destDrawerId);
 
-                    {destCabinetId && destDrawersForCabinet.length > 0 && !isReformDestLocked && (
-                      <div className="grid grid-cols-2 gap-4">
-                        <div className="grid gap-2">
-                          <Label>Gaveta</Label>
-                          <Select value={destDrawerId} onValueChange={setDestDrawerId} disabled={!selectedTool}>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Gaveta" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {destDrawersForCabinet.map((d) => (
-                                <SelectItem key={d.id} value={d.id}>Gaveta {d.number}</SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        </div>
-                        <div className="grid gap-2">
-                          <Label>Posicao</Label>
-                          {destDrawerId ? (
-                            <Select value={destPosition} onValueChange={setDestPosition} disabled={!selectedTool}>
+                      if (isLocked && destCabinetId) {
+                        return (
+                          <div className="grid gap-2">
+                            <Label className="flex items-center gap-2">
+                              Destino
+                              <Badge variant="outline" className="text-[10px]">
+                                Fixo
+                              </Badge>
+                            </Label>
+                            <div className="rounded-md border border-border bg-secondary/50 p-3">
+                              <p className="text-sm font-medium">
+                                {getCabinetName(destCabinetId)}
+                                {lockedDrawer ? ` - Gaveta ${lockedDrawer.number}` : ""}
+                                {destPosition ? ` - Pos. ${destPosition}` : ""}
+                              </p>
+                              <p className="text-xs text-muted-foreground mt-1">
+                                {isReformDestLocked
+                                  ? `Ferramenta reformada ${existingReformedToolForSelected?.code} ja cadastrada nesta gaveta.`
+                                  : "A ferramenta ja esta cadastrada neste local."}
+                              </p>
+                            </div>
+                          </div>
+                        );
+                      }
+
+                      // Not locked - show selectors
+                      return (
+                        <>
+                          <div className="grid gap-2">
+                            <Label className="flex items-center gap-2">
+                              Armario de Destino *
+                              {selectedReform && (
+                                <Badge className="bg-sky-500/20 text-sky-400 border-sky-500/30 text-[10px]">
+                                  Somente armarios de reforma
+                                </Badge>
+                              )}
+                            </Label>
+                            <Select
+                              value={destCabinetId}
+                              onValueChange={(v) => {
+                                setDestCabinetId(v);
+                                setDestDrawerId("");
+                                setDestPosition("");
+                              }}
+                              disabled={!selectedTool}
+                            >
                               <SelectTrigger>
-                                <SelectValue placeholder="Posicao" />
+                                <SelectValue placeholder="Selecione o armario" />
                               </SelectTrigger>
                               <SelectContent>
-                                {drawers.find(d => d.id === destDrawerId)?.positions.map((p) => (
-                                  <SelectItem key={p} value={p}>Posicao {p}</SelectItem>
+                                {(selectedReform ? reformCabinets : normalCabinets).map((c) => (
+                                  <SelectItem key={c.id} value={c.id}>
+                                    {c.name} - {c.location}
+                                    {c.isReformOnly ? " (Reformadas)" : ""}
+                                  </SelectItem>
                                 ))}
                               </SelectContent>
                             </Select>
+                            {selectedReform && (
+                              <p className="text-xs text-sky-400">
+                                Primeira reforma: selecione o armario e gaveta de destino.
+                              </p>
+                            )}
+                          </div>
+
+                          {destCabinetId && destDrawersForCabinet.length > 0 && (
+                            <div className="grid grid-cols-2 gap-4">
+                              <div className="grid gap-2">
+                                <Label>Gaveta</Label>
+                                <Select value={destDrawerId} onValueChange={setDestDrawerId} disabled={!selectedTool}>
+                                  <SelectTrigger>
+                                    <SelectValue placeholder="Gaveta" />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    {destDrawersForCabinet.map((d) => (
+                                      <SelectItem key={d.id} value={d.id}>Gaveta {d.number}</SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
+                              </div>
+                              <div className="grid gap-2">
+                                <Label>Posicao</Label>
+                                {destDrawerId ? (
+                                  <Select value={destPosition} onValueChange={setDestPosition} disabled={!selectedTool}>
+                                    <SelectTrigger>
+                                      <SelectValue placeholder="Posicao" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                      {drawers.find(d => d.id === destDrawerId)?.positions.map((p) => (
+                                        <SelectItem key={p} value={p}>Posicao {p}</SelectItem>
+                                      ))}
+                                    </SelectContent>
+                                  </Select>
                           ) : (
                             <Input placeholder="Selecione a gaveta" disabled />
                           )}
-                        </div>
-                      </div>
-                    )}
+                              </div>
+                            </div>
+                          )}
+                        </>
+                      );
+                    })()}
 
                     <div className="grid gap-2">
                       <Label htmlFor="entryNotes">Observacoes</Label>
