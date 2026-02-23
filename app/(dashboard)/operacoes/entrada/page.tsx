@@ -129,6 +129,16 @@ export default function EntryPage() {
   const reformCabinets = cabinets.filter(c => c.isReformOnly);
   const normalCabinets = cabinets.filter(c => !c.isReformOnly);
 
+  // Find existing reformed tool for the selected tool (code + "R" in a reform cabinet)
+  const existingReformedToolForSelected = selectedTool
+    ? tools.find(t => {
+        const baseCode = selectedTool.code.replace(/R$/, "");
+        return t.code === baseCode + "R" && reformCabinets.some(c => c.id === t.cabinetId);
+      })
+    : null;
+  // If a reform is selected and the reformed tool already has a home, lock destination
+  const isReformDestLocked = !!selectedReform && !!existingReformedToolForSelected;
+
   // Handle existing tool entry
   const handleExistingEntry = (e: React.FormEvent) => {
     e.preventDefault();
@@ -555,12 +565,24 @@ export default function EntryPage() {
                     } else {
                       setSelectedReformId(reform.id);
                       setInvoiceNumber(reform.invoiceNumber || "");
-                      // Auto-select first reform cabinet (A-R)
-                      const firstReformCabinet = reformCabinets[0];
-                      if (firstReformCabinet) {
-                        setDestCabinetId(firstReformCabinet.id);
-                        setDestDrawerId("");
-                        setDestPosition("");
+                      // Check if reformed tool already exists in a specific drawer
+                      const baseCode = selectedTool?.code.replace(/R$/, "") || "";
+                      const existingReformed = tools.find(t =>
+                        t.code === baseCode + "R" && reformCabinets.some(c => c.id === t.cabinetId)
+                      );
+                      if (existingReformed) {
+                        // Lock to exact cabinet/drawer/position of existing reformed tool
+                        setDestCabinetId(existingReformed.cabinetId);
+                        setDestDrawerId(existingReformed.drawerId);
+                        setDestPosition(existingReformed.position);
+                      } else {
+                        // No existing reformed tool - select first reform cabinet
+                        const firstReformCabinet = reformCabinets[0];
+                        if (firstReformCabinet) {
+                          setDestCabinetId(firstReformCabinet.id);
+                          setDestDrawerId("");
+                          setDestPosition("");
+                        }
                       }
                     }
                                     }}
@@ -616,9 +638,21 @@ export default function EntryPage() {
                           <span className="text-muted-foreground">{"-->"}</span>
                           <ToolCodeDisplay code={selectedTool.code.replace(/R$/, "") + "R"} className="text-sm font-bold" />
                         </div>
-                        <p className="text-[11px] text-muted-foreground mt-1.5">
-                          O codigo da ferramenta recebera o sufixo "R" e sera movida para o armario de ferramentas reformadas.
-                        </p>
+                        {isReformDestLocked && existingReformedToolForSelected && (
+                          <div className="mt-2 p-2 rounded bg-sky-500/5 border border-sky-500/10">
+                            <p className="text-[11px] text-sky-400 font-medium">
+                              Destino: {getCabinetName(existingReformedToolForSelected.cabinetId)} - Gaveta {drawers.find(d => d.id === existingReformedToolForSelected.drawerId)?.number || "?"} - Pos. {existingReformedToolForSelected.position || "?"}
+                            </p>
+                            <p className="text-[10px] text-muted-foreground mt-0.5">
+                              Estoque atual: {existingReformedToolForSelected.quantity} un.
+                            </p>
+                          </div>
+                        )}
+                        {!isReformDestLocked && (
+                          <p className="text-[11px] text-muted-foreground mt-1.5">
+                            Primeira reforma: selecione gaveta e posicao no armario de reforma abaixo.
+                          </p>
+                        )}
                       </div>
                     )}
 
@@ -665,41 +699,57 @@ export default function EntryPage() {
                     <div className="grid gap-2">
                       <Label className="flex items-center gap-2">
                         Armario de Destino *
-                        {selectedReform && (
+                        {selectedReform && isReformDestLocked && (
+                          <Badge className="bg-sky-500/20 text-sky-400 border-sky-500/30 text-[10px]">
+                            Destino fixo
+                          </Badge>
+                        )}
+                        {selectedReform && !isReformDestLocked && (
                           <Badge className="bg-sky-500/20 text-sky-400 border-sky-500/30 text-[10px]">
                             Somente armarios de reforma
                           </Badge>
                         )}
                       </Label>
-                      <Select
-                        value={destCabinetId}
-                        onValueChange={(v) => {
-                          setDestCabinetId(v);
-                          setDestDrawerId("");
-                          setDestPosition("");
-                        }}
-                        disabled={!selectedTool}
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Selecione o armario" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {(selectedReform ? reformCabinets : normalCabinets).map((c) => (
-                            <SelectItem key={c.id} value={c.id}>
-                              {c.name} - {c.location}
-                              {c.isReformOnly ? " (Reformadas)" : ""}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      {selectedReform && (
+                      {isReformDestLocked ? (
+                        <div className="rounded-md border border-sky-500/30 bg-sky-500/5 p-3">
+                          <p className="text-sm font-medium">
+                            {getCabinetName(destCabinetId)} - Gaveta {drawers.find(d => d.id === destDrawerId)?.number || "?"} - Pos. {destPosition || "?"}
+                          </p>
+                          <p className="text-xs text-sky-400 mt-1">
+                            Destino fixo: ferramenta reformada {existingReformedToolForSelected?.code} ja esta cadastrada nesta gaveta.
+                          </p>
+                        </div>
+                      ) : (
+                        <Select
+                          value={destCabinetId}
+                          onValueChange={(v) => {
+                            setDestCabinetId(v);
+                            setDestDrawerId("");
+                            setDestPosition("");
+                          }}
+                          disabled={!selectedTool}
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Selecione o armario" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {(selectedReform ? reformCabinets : normalCabinets).map((c) => (
+                              <SelectItem key={c.id} value={c.id}>
+                                {c.name} - {c.location}
+                                {c.isReformOnly ? " (Reformadas)" : ""}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      )}
+                      {selectedReform && !isReformDestLocked && (
                         <p className="text-xs text-sky-400">
-                          Ferramentas retornando de reforma devem ser armazenadas nos armarios A-R ou B-R.
+                          Primeira reforma: selecione o armario e gaveta de destino. Proximos retornos irao automaticamente para o mesmo local.
                         </p>
                       )}
                     </div>
 
-                    {destCabinetId && destDrawersForCabinet.length > 0 && (
+                    {destCabinetId && destDrawersForCabinet.length > 0 && !isReformDestLocked && (
                       <div className="grid grid-cols-2 gap-4">
                         <div className="grid gap-2">
                           <Label>Gaveta</Label>
@@ -748,7 +798,8 @@ export default function EntryPage() {
                     <Button
                       type="submit"
                       className={`w-full ${selectedReform ? "bg-sky-600 hover:bg-sky-700 text-white" : ""}`}
-                      disabled={!selectedTool || !quantity || !destCabinetId}
+                      disabled={!selectedTool || !quantity || !destCabinetId || (!isReformDestLocked && selectedReform && (!destDrawerId))}
+
                     >
                       {selectedReform ? (
                         <>
