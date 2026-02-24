@@ -26,6 +26,7 @@ import {
   FileText,
   Send,
   Calendar,
+  ClipboardList,
 } from "lucide-react";
 import { type Tool } from "@/lib/mock-data";
 import { useDataStore } from "@/lib/data-store";
@@ -40,6 +41,7 @@ export default function ReformaPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [quantity, setQuantity] = useState("");
   const [notaNumber, setNotaNumber] = useState("");
+  const [packingListNumber, setPackingListNumber] = useState("");
   const [selectedSupplierId, setSelectedSupplierId] = useState("");
   const [estimatedReturn, setEstimatedReturn] = useState("");
   const [notes, setNotes] = useState("");
@@ -107,6 +109,7 @@ export default function ReformaPage() {
     const supplierName = suppliers.find(s => s.id === selectedSupplierId)?.name || "";
     const movementNotes = [
       notaNumber ? `Nota: ${notaNumber}` : null,
+      packingListNumber ? `Romaneio: ${packingListNumber}` : null,
       supplierName ? `Fornecedor: ${supplierName}` : null,
       notes || null,
     ].filter(Boolean).join(" | ");
@@ -121,6 +124,7 @@ export default function ReformaPage() {
         date: timestamp.toISOString(),
         notes: movementNotes || "Enviado para reforma",
         invoiceNumber: notaNumber || undefined,
+        packingListNumber: packingListNumber || undefined,
         supplier: supplierName || undefined,
         estimatedReturn: estimatedReturn || undefined,
       },
@@ -128,18 +132,19 @@ export default function ReformaPage() {
     ]);
 
     setSuccessMsg(
-      `Reforma registrada em ${formatDateTime(timestamp)}: ${qty} un. de ${selectedTool.code} enviada(s) para reforma${supplierName ? ` | Fornecedor: ${supplierName}` : ""}${notaNumber ? ` | Nota: ${notaNumber}` : ""} | Estoque no armario: ${selectedTool.quantity} (sem alteracao)`
+      `Reforma registrada em ${formatDateTime(timestamp)}: ${qty} un. de ${selectedTool.code} enviada(s) para reforma${supplierName ? ` | Fornecedor: ${supplierName}` : ""}${notaNumber ? ` | Nota: ${notaNumber}` : ""}${packingListNumber ? ` | Romaneio: ${packingListNumber}` : ""} | Estoque no armario: ${selectedTool.quantity} (sem alteracao)`
     );
     addNotification({
       type: "reform_send",
       title: "Envio para Reforma",
-      message: `${qty} un. de ${selectedTool.code} (${selectedTool.description}) enviadas para reforma${supplierName ? ` | ${supplierName}` : ""}${notaNumber ? ` | NF: ${notaNumber}` : ""}`,
+      message: `${qty} un. de ${selectedTool.code} (${selectedTool.description}) enviadas para reforma${supplierName ? ` | ${supplierName}` : ""}${notaNumber ? ` | NF: ${notaNumber}` : ""}${packingListNumber ? ` | Rom: ${packingListNumber}` : ""}`,
     });
     setSuccess(true);
     setTimeout(() => setSuccess(false), 5000);
     setSelectedTool(null);
     setQuantity("");
     setNotaNumber("");
+    setPackingListNumber("");
     setSelectedSupplierId("");
     setEstimatedReturn("");
     setNotes("");
@@ -368,6 +373,21 @@ export default function ReformaPage() {
                     placeholder="Ex: NF-2026-001234"
                     value={notaNumber}
                     onChange={(e) => setNotaNumber(e.target.value)}
+                    disabled={!selectedTool}
+                  />
+                </div>
+
+                {/* Packing List Number (Romaneio) */}
+                <div className="grid gap-2">
+                  <Label htmlFor="packingListNumber" className="flex items-center gap-2">
+                    <ClipboardList className="h-4 w-4 text-muted-foreground" />
+                    Numero do Romaneio
+                  </Label>
+                  <Input
+                    id="packingListNumber"
+                    placeholder="Ex: ROM-2026-000123"
+                    value={packingListNumber}
+                    onChange={(e) => setPackingListNumber(e.target.value)}
                     disabled={!selectedTool}
                   />
                 </div>

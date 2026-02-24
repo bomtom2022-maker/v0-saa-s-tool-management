@@ -87,6 +87,7 @@ export interface Movement {
   date: string;
   notes: string;
   invoiceNumber?: string;
+  packingListNumber?: string; // numero do romaneio
   supplier?: string;
   estimatedReturn?: string; // ISO date - estimated return from reform
 }

@@ -117,7 +117,7 @@ export default function ReportsPage() {
         drawerLabel: tool ? getDrawerLabel(tool.drawerId) : "", position: tool?.position || "",
         quantitySent: send.quantity, stillOut, dateSent: send.date,
         estimatedReturn: send.estimatedReturn || null, supplier: send.supplier || "N/A",
-        nota: send.invoiceNumber || "-", notes: send.notes, isOverdue, daysOverdue,
+        nota: send.invoiceNumber || "-", romaneio: send.packingListNumber || "-", notes: send.notes, isOverdue, daysOverdue,
         status: stillOut <= 0 ? "returned" : isOverdue ? "overdue" : "pending",
       };
     });
@@ -170,6 +170,7 @@ export default function ReportsPage() {
       date: dateVal ? new Date(dateVal).toISOString() : editingMovement.date,
       notes: fd.get("notes") as string || editingMovement.notes,
       invoiceNumber: (fd.get("invoiceNumber") as string) || editingMovement.invoiceNumber,
+      packingListNumber: (fd.get("packingListNumber") as string) || editingMovement.packingListNumber,
       estimatedReturn: estimatedVal || editingMovement.estimatedReturn,
     };
     setMovements(prev => prev.map(m => m.id === updated.id ? updated : m));
@@ -497,7 +498,7 @@ export default function ReportsPage() {
                     Codigo: r.toolCode, Descricao: r.toolDescription, Armario: r.cabinetName,
                     Quantidade: r.quantitySent, DataEnvio: formatDateTime(r.dateSent),
                     PrevisaoRetorno: r.estimatedReturn ? formatDate(r.estimatedReturn) : "N/A",
-                    Fornecedor: r.supplier, Nota: r.nota,
+                    Fornecedor: r.supplier, Nota: r.nota, Romaneio: r.romaneio,
                     Status: r.status === "overdue" ? `ATRASADO (${r.daysOverdue} dias)` : r.status === "returned" ? "Concluido" : "Pendente",
                   })), "reformas");
                 }}>
@@ -525,6 +526,7 @@ export default function ReportsPage() {
                           <TableHead>Previsao</TableHead>
                           <TableHead>Fornecedor</TableHead>
                           <TableHead>Nota</TableHead>
+                          <TableHead>Romaneio</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
@@ -562,6 +564,7 @@ export default function ReportsPage() {
                               </TableCell>
                               <TableCell className="text-sm">{item.supplier}</TableCell>
                               <TableCell className="text-sm font-mono">{item.nota}</TableCell>
+                              <TableCell className="text-sm font-mono">{item.romaneio}</TableCell>
                             </TableRow>
                           );
                         })}
@@ -602,7 +605,7 @@ export default function ReportsPage() {
                         Data: formatDateTime(m.date),
                         Tipo: m.type === "entry" ? "Entrada" : m.type === "exit" ? "Saida" : m.type === "reform_send" ? "Reforma (envio)" : m.type === "reform_return" ? "Reforma (retorno)" : "Nota Fiscal",
                         Codigo: tool?.code || "N/A", Descricao: tool?.description || "N/A",
-                        Quantidade: m.quantity, Nota: m.invoiceNumber || "-", Fornecedor: m.supplier || "-", Observacoes: m.notes,
+                        Quantidade: m.quantity, Nota: m.invoiceNumber || "-", Romaneio: m.packingListNumber || "-", Fornecedor: m.supplier || "-", Observacoes: m.notes,
                       };
                     }), "movimentacoes");
                   }}>
@@ -668,6 +671,7 @@ export default function ReportsPage() {
                           <TableHead>Descricao</TableHead>
                           <TableHead className="text-center">Qtd.</TableHead>
                           <TableHead>Nota</TableHead>
+                          <TableHead>Romaneio</TableHead>
                           <TableHead>Observacoes</TableHead>
                         </TableRow>
                       </TableHeader>
@@ -689,6 +693,7 @@ export default function ReportsPage() {
                               <TableCell className="max-w-[150px] truncate">{tool?.description || "N/A"}</TableCell>
                               <TableCell className="text-center font-bold">{m.quantity}</TableCell>
                               <TableCell className="text-sm font-mono">{m.invoiceNumber || "-"}</TableCell>
+                              <TableCell className="text-sm font-mono">{m.packingListNumber || "-"}</TableCell>
                               <TableCell className="text-sm text-muted-foreground max-w-[200px] truncate">{m.notes || "-"}</TableCell>
                             </TableRow>
                           );
@@ -777,6 +782,10 @@ export default function ReportsPage() {
               <div className="grid gap-2">
                 <Label htmlFor="edit-mov-nota">Numero da Nota</Label>
                 <Input id="edit-mov-nota" name="invoiceNumber" defaultValue={editingMovement.invoiceNumber || ""} placeholder="NF-..." />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="edit-mov-romaneio">Numero do Romaneio</Label>
+                <Input id="edit-mov-romaneio" name="packingListNumber" defaultValue={editingMovement.packingListNumber || ""} placeholder="ROM-..." />
               </div>
               {(editingMovement.type === "reform_send") && (
                 <div className="grid gap-2">
