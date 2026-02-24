@@ -1,11 +1,10 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useCallback } from "react";
 import { Header } from "@/components/dashboard/header";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import {
   Table,
@@ -29,6 +28,11 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
+import {
   History,
   Search,
   Filter,
@@ -46,6 +50,9 @@ import {
   MapPin,
   ChevronLeft,
   ChevronRight,
+  ChevronDown,
+  X,
+  SlidersHorizontal,
 } from "lucide-react";
 import { type Movement } from "@/lib/mock-data";
 import { useDataStore } from "@/lib/data-store";
@@ -64,6 +71,7 @@ export default function HistoryPage() {
   const [dateTo, setDateTo] = useState("");
   const [page, setPage] = useState(1);
   const [selectedMovement, setSelectedMovement] = useState<Movement | null>(null);
+  const [filtersOpen, setFiltersOpen] = useState(true);
 
   const getMovementType = (type: Movement["type"]) => {
     const types: Record<Movement["type"], { label: string; icon: typeof ArrowDownRight; color: string; bg: string }> = {
@@ -80,16 +88,12 @@ export default function HistoryPage() {
   const getUser = (userId: string) => users.find((u) => u.id === userId);
   const getCabinet = (cabinetId: string) => cabinets.find((c) => c.id === cabinetId);
   const getDrawer = (drawerId: string) => drawers.find((d) => d.id === drawerId);
-  const getSupplier = (name: string) => suppliers.find((s) => s.name === name);
 
-  // All movements come exclusively from the data store (single source of truth)
   const filteredMovements = useMemo(() => {
     return movements
       .filter((movement) => {
         const tool = getTool(movement.toolId);
         const user = getUser(movement.userId);
-
-        // Search: code, description, notes, invoice number, supplier
         const search = searchTerm.toLowerCase();
         const matchesSearch =
           !searchTerm ||
@@ -102,10 +106,7 @@ export default function HistoryPage() {
 
         const matchesType = filterType === "all" || movement.type === filterType;
         const matchesUser = filterUser === "all" || movement.userId === filterUser;
-
-        // Filter by cabinet: match the tool's current cabinet
         const matchesCabinet = filterCabinet === "all" || tool?.cabinetId === filterCabinet;
-
         const movementDate = new Date(movement.date);
         const matchesDateFrom = !dateFrom || movementDate >= new Date(dateFrom);
         const matchesDateTo = !dateTo || movementDate <= new Date(dateTo + "T23:59:59");
@@ -115,11 +116,9 @@ export default function HistoryPage() {
       .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
   }, [movements, tools, users, searchTerm, filterType, filterUser, filterCabinet, dateFrom, dateTo]);
 
-  // Pagination
   const totalPages = Math.max(1, Math.ceil(filteredMovements.length / PAGE_SIZE));
   const paginatedMovements = filteredMovements.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
-  // Summary stats from filtered movements
   const stats = useMemo(() => {
     const entries = filteredMovements.filter((m) => m.type === "entry" || m.type === "invoice");
     const exits = filteredMovements.filter((m) => m.type === "exit");
@@ -127,15 +126,10 @@ export default function HistoryPage() {
     const reformReturns = filteredMovements.filter((m) => m.type === "reform_return");
     const totalEntryQty = entries.reduce((s, m) => s + m.quantity, 0);
     const totalExitQty = exits.reduce((s, m) => s + m.quantity, 0);
-    return {
-      entries: entries.length,
-      exits: exits.length,
-      reformSends: reformSends.length,
-      reformReturns: reformReturns.length,
-      totalEntryQty,
-      totalExitQty,
-    };
+    return { entries: entries.length, exits: exits.length, reformSends: reformSends.length, reformReturns: reformReturns.length, totalEntryQty, totalExitQty };
   }, [filteredMovements]);
+
+  const activeFilterCount = [filterType !== "all", filterUser !== "all", filterCabinet !== "all", !!dateFrom, !!dateTo].filter(Boolean).length;
 
   const clearFilters = () => {
     setSearchTerm("");
@@ -147,8 +141,37 @@ export default function HistoryPage() {
     setPage(1);
   };
 
+  const activeUserIds = useMemo(() => {
+    const ids = new Set(movements.map((m) => m.userId));
+    return Array.from(ids);
+  }, [movements]);
+
+  // Active filter labels
+  const activeFilters = useMemo(() => {
+    const filters: { key: string; label: string; onRemove: () => void }[] = [];
+    if (filterType !== "all") {
+      const t = getMovementType(filterType as Movement["type"]);
+      filters.push({ key: "type", label: `Tipo: ${t.label}`, onRemove: () => { setFilterType("all"); setPage(1); } });
+    }
+    if (filterCabinet !== "all") {
+      const c = getCabinet(filterCabinet);
+      filters.push({ key: "cabinet", label: `Armario: ${c?.name || filterCabinet}`, onRemove: () => { setFilterCabinet("all"); setPage(1); } });
+    }
+    if (filterUser !== "all") {
+      const u = getUser(filterUser);
+      filters.push({ key: "user", label: `Usuario: ${u?.name || filterUser}`, onRemove: () => { setFilterUser("all"); setPage(1); } });
+    }
+    if (dateFrom) {
+      filters.push({ key: "dateFrom", label: `De: ${new Date(dateFrom + "T12:00:00").toLocaleDateString("pt-BR")}`, onRemove: () => { setDateFrom(""); setPage(1); } });
+    }
+    if (dateTo) {
+      filters.push({ key: "dateTo", label: `Ate: ${new Date(dateTo + "T12:00:00").toLocaleDateString("pt-BR")}`, onRemove: () => { setDateTo(""); setPage(1); } });
+    }
+    return filters;
+  }, [filterType, filterCabinet, filterUser, dateFrom, dateTo, cabinets, users]);
+
   // CSV Export
-  const handleExport = () => {
+  const handleExportCSV = () => {
     const headers = ["Data", "Hora", "Tipo", "Codigo", "Descricao", "Armario", "Gaveta", "Posicao", "Qtd", "Usuario", "NF", "Fornecedor", "Observacoes"];
     const rows = filteredMovements.map((m) => {
       const tool = getTool(m.toolId);
@@ -183,11 +206,191 @@ export default function HistoryPage() {
     URL.revokeObjectURL(url);
   };
 
-  // Unique users from movements for the user filter dropdown
-  const activeUserIds = useMemo(() => {
-    const ids = new Set(movements.map((m) => m.userId));
-    return Array.from(ids);
-  }, [movements]);
+  // PDF Export - Professional fiscal/admin layout
+  const handleExportPDF = useCallback(async () => {
+    const jsPDFModule = await import("jspdf");
+    const jsPDF = jsPDFModule.default;
+    const autoTableModule = await import("jspdf-autotable");
+
+    const doc = new jsPDF({ orientation: "landscape", unit: "mm", format: "a4" });
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const pageHeight = doc.internal.pageSize.getHeight();
+    const margin = 14;
+    const primaryColor: [number, number, number] = [180, 50, 40];
+    const darkGray: [number, number, number] = [40, 40, 45];
+    const medGray: [number, number, number] = [100, 100, 105];
+    const lightBg: [number, number, number] = [245, 245, 248];
+
+    const now = new Date();
+    const reportDate = now.toLocaleDateString("pt-BR", { day: "2-digit", month: "long", year: "numeric" });
+    const reportTime = now.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+
+    // --- HEADER ---
+    // Top accent line
+    doc.setFillColor(...primaryColor);
+    doc.rect(0, 0, pageWidth, 2, "F");
+
+    // Title block
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(18);
+    doc.setTextColor(...darkGray);
+    doc.text("RELATORIO DE MOVIMENTACOES", margin, 16);
+
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(9);
+    doc.setTextColor(...medGray);
+    doc.text("Sistema de Gerenciamento de Ferramentas", margin, 22);
+
+    // Right side - date/time block
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(8);
+    doc.setTextColor(...medGray);
+    doc.text(`Emitido em: ${reportDate} as ${reportTime}`, pageWidth - margin, 12, { align: "right" });
+    doc.text(`Total de registros: ${filteredMovements.length}`, pageWidth - margin, 17, { align: "right" });
+
+    // Separator
+    doc.setDrawColor(220, 220, 225);
+    doc.setLineWidth(0.3);
+    doc.line(margin, 26, pageWidth - margin, 26);
+
+    // --- FILTERS APPLIED ---
+    let yPos = 31;
+    if (activeFilters.length > 0 || searchTerm) {
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(8);
+      doc.setTextColor(...primaryColor);
+      doc.text("FILTROS APLICADOS", margin, yPos);
+      yPos += 5;
+
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(7.5);
+      doc.setTextColor(...medGray);
+
+      const filterTexts: string[] = [];
+      if (searchTerm) filterTexts.push(`Busca: "${searchTerm}"`);
+      activeFilters.forEach(f => filterTexts.push(f.label));
+
+      doc.text(filterTexts.join("   |   "), margin, yPos);
+      yPos += 7;
+    }
+
+    // --- SUMMARY BOX ---
+    doc.setFillColor(...lightBg);
+    doc.roundedRect(margin, yPos, pageWidth - margin * 2, 14, 2, 2, "F");
+
+    const summaryItems = [
+      { label: "Entradas", value: `${stats.entries} (+${stats.totalEntryQty} un.)` },
+      { label: "Saidas", value: `${stats.exits} (-${stats.totalExitQty} un.)` },
+      { label: "Env. Reforma", value: String(stats.reformSends) },
+      { label: "Ret. Reforma", value: String(stats.reformReturns) },
+      { label: "Notas Fiscais", value: String(filteredMovements.filter(m => m.invoiceNumber).length) },
+    ];
+
+    const boxWidth = (pageWidth - margin * 2) / summaryItems.length;
+    summaryItems.forEach((item, i) => {
+      const x = margin + boxWidth * i + boxWidth / 2;
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(7);
+      doc.setTextColor(...medGray);
+      doc.text(item.label, x, yPos + 5, { align: "center" });
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(10);
+      doc.setTextColor(...darkGray);
+      doc.text(item.value, x, yPos + 11, { align: "center" });
+    });
+
+    yPos += 19;
+
+    // --- PERIOD ---
+    if (dateFrom || dateTo) {
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(7.5);
+      doc.setTextColor(...medGray);
+      const periodText = `Periodo: ${dateFrom ? new Date(dateFrom + "T12:00:00").toLocaleDateString("pt-BR") : "Inicio"} a ${dateTo ? new Date(dateTo + "T12:00:00").toLocaleDateString("pt-BR") : "Atual"}`;
+      doc.text(periodText, margin, yPos);
+      yPos += 5;
+    }
+
+    // --- TABLE ---
+    const tableData = filteredMovements.map((m) => {
+      const tool = getTool(m.toolId);
+      const user = getUser(m.userId);
+      const cabinet = tool ? getCabinet(tool.cabinetId) : null;
+      const drawer = tool ? getDrawer(tool.drawerId) : null;
+      const d = new Date(m.date);
+      const typeInfo = getMovementType(m.type);
+      const isPositive = m.type === "entry" || m.type === "invoice" || m.type === "reform_return";
+      return [
+        `${d.toLocaleDateString("pt-BR")}\n${d.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}`,
+        typeInfo.label,
+        tool?.code || "N/A",
+        tool?.description || "Removida",
+        `${cabinet?.name || "N/A"}${drawer ? ` / G${drawer.number}` : ""}${tool?.position ? ` / P${tool.position}` : ""}`,
+        `${isPositive ? "+" : "-"}${m.quantity}`,
+        user?.name || m.userId,
+        m.invoiceNumber || "-",
+        m.supplier || "-",
+      ];
+    });
+
+    (doc as any).autoTable({
+      startY: yPos,
+      head: [["Data/Hora", "Tipo", "Codigo", "Descricao", "Localizacao", "Qtd", "Usuario", "NF", "Fornecedor"]],
+      body: tableData,
+      margin: { left: margin, right: margin },
+      styles: {
+        fontSize: 7,
+        cellPadding: 2.5,
+        textColor: darkGray,
+        lineColor: [220, 220, 225],
+        lineWidth: 0.2,
+      },
+      headStyles: {
+        fillColor: darkGray,
+        textColor: [255, 255, 255],
+        fontStyle: "bold",
+        fontSize: 7,
+        cellPadding: 3,
+      },
+      alternateRowStyles: {
+        fillColor: [250, 250, 253],
+      },
+      columnStyles: {
+        0: { cellWidth: 24 },
+        1: { cellWidth: 26 },
+        2: { cellWidth: 28, fontStyle: "bold", font: "courier" },
+        3: { cellWidth: 40 },
+        4: { cellWidth: 36 },
+        5: { cellWidth: 14, halign: "center" as const, fontStyle: "bold" },
+        6: { cellWidth: 30 },
+        7: { cellWidth: 28 },
+        8: { cellWidth: 36 },
+      },
+      didDrawPage: (data: any) => {
+        // Footer on every page
+        const pageCount = (doc as any).internal.getNumberOfPages();
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(7);
+        doc.setTextColor(...medGray);
+
+        // Left: document ID
+        doc.text(`REF: MOV-${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, "0")}${String(now.getDate()).padStart(2, "0")}-${String(now.getHours()).padStart(2, "0")}${String(now.getMinutes()).padStart(2, "0")}`, margin, pageHeight - 8);
+
+        // Center: page number
+        const pageNum = (doc as any).internal.getCurrentPageInfo().pageNumber;
+        doc.text(`Pagina ${pageNum} de ${pageCount}`, pageWidth / 2, pageHeight - 8, { align: "center" });
+
+        // Right: confidential label
+        doc.text("Documento de uso interno", pageWidth - margin, pageHeight - 8, { align: "right" });
+
+        // Bottom accent line
+        doc.setFillColor(...primaryColor);
+        doc.rect(0, pageHeight - 3, pageWidth, 3, "F");
+      },
+    });
+
+    doc.save(`relatorio-movimentacoes-${now.toISOString().slice(0, 10)}.pdf`);
+  }, [filteredMovements, activeFilters, searchTerm, stats, dateFrom, dateTo]);
 
   return (
     <div className="min-h-screen">
@@ -196,140 +399,175 @@ export default function HistoryPage() {
         subtitle="Registro de todas as movimentacoes do sistema"
       />
 
-      <div className="p-4 md:p-6 space-y-4 md:space-y-6">
-        {/* Info Card */}
-        <Card className="bg-primary/5 border-primary/20">
-          <CardContent className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:gap-4">
-            <div className="flex items-center gap-3">
-              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary/10">
-                <History className="h-5 w-5 text-primary" />
-              </div>
-              <div className="min-w-0">
-                <p className="text-sm font-medium text-foreground">
-                  Historico de Movimentacoes
-                </p>
-                <p className="text-xs text-muted-foreground">
-                  Registros automaticos de todas as operacoes do sistema.
-                </p>
-              </div>
-            </div>
-            <Badge variant="outline" className="shrink-0 self-start sm:ml-auto sm:self-center">
-              {movements.length} registro(s)
-            </Badge>
-          </CardContent>
-        </Card>
-
+      <div className="p-4 md:p-6 space-y-4">
         {/* Filters */}
         <Card className="bg-card border-border">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Filter className="h-5 w-5" />
-              Filtros
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            {/* Row 1: Search */}
-            <div className="grid gap-2">
-              <Label>Busca</Label>
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                <Input
-                  placeholder="Codigo, descricao, NF, fornecedor..."
-                  value={searchTerm}
-                  onChange={(e) => { setSearchTerm(e.target.value); setPage(1); }}
-                  className="pl-9"
-                />
-              </div>
-            </div>
+          <Collapsible open={filtersOpen} onOpenChange={setFiltersOpen}>
+            <CardHeader className="pb-3">
+              <div className="flex items-center justify-between">
+                <CollapsibleTrigger asChild>
+                  <button type="button" className="flex items-center gap-2 group cursor-pointer">
+                    <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10">
+                      <SlidersHorizontal className="h-4 w-4 text-primary" />
+                    </div>
+                    <div className="text-left">
+                      <CardTitle className="text-base">Filtros</CardTitle>
+                      <CardDescription className="text-xs">
+                        {filteredMovements.length} de {movements.length} registro(s)
+                      </CardDescription>
+                    </div>
+                    <ChevronDown className={`h-4 w-4 text-muted-foreground transition-transform ml-1 ${filtersOpen ? "rotate-180" : ""}`} />
+                  </button>
+                </CollapsibleTrigger>
 
-            {/* Row 2: Selects - 1 col mobile, 3 cols desktop */}
-            <div className="grid gap-4 grid-cols-1 sm:grid-cols-3 mt-4">
-              <div className="grid gap-2">
-                <Label>Tipo</Label>
-                <Select value={filterType} onValueChange={(v) => { setFilterType(v); setPage(1); }}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">Todos</SelectItem>
-                    <SelectItem value="entry">Entrada</SelectItem>
-                    <SelectItem value="exit">Saida</SelectItem>
-                    <SelectItem value="invoice">Nota Fiscal</SelectItem>
-                    <SelectItem value="reform_send">Envio Reforma</SelectItem>
-                    <SelectItem value="reform_return">Retorno Reforma</SelectItem>
-                  </SelectContent>
-                </Select>
+                <div className="flex items-center gap-2">
+                  {activeFilterCount > 0 && (
+                    <Badge variant="secondary" className="text-xs">
+                      {activeFilterCount} filtro(s)
+                    </Badge>
+                  )}
+                  <Button variant="outline" size="sm" onClick={handleExportCSV} disabled={filteredMovements.length === 0} className="h-8 text-xs">
+                    <Download className="mr-1.5 h-3.5 w-3.5" />
+                    CSV
+                  </Button>
+                  <Button size="sm" onClick={handleExportPDF} disabled={filteredMovements.length === 0} className="h-8 text-xs bg-primary hover:bg-primary/90">
+                    <FileText className="mr-1.5 h-3.5 w-3.5" />
+                    Exportar PDF
+                  </Button>
+                </div>
               </div>
+            </CardHeader>
 
-              <div className="grid gap-2">
-                <Label>Armario</Label>
-                <Select value={filterCabinet} onValueChange={(v) => { setFilterCabinet(v); setPage(1); }}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">Todos</SelectItem>
-                    {cabinets.map((c) => (
-                      <SelectItem key={c.id} value={c.id}>
-                        {c.name}{c.isReformOnly ? " (Reformadas)" : ""}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+            <CollapsibleContent>
+              <CardContent className="pt-0 pb-4">
+                {/* Row 1: Search + Quick Type Filters */}
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
+                  <div className="relative flex-1">
+                    <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                    <Input
+                      placeholder="Buscar por codigo, descricao, NF, fornecedor..."
+                      value={searchTerm}
+                      onChange={(e) => { setSearchTerm(e.target.value); setPage(1); }}
+                      className="pl-9 h-9"
+                    />
+                    {searchTerm && (
+                      <button
+                        type="button"
+                        onClick={() => { setSearchTerm(""); setPage(1); }}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                      >
+                        <X className="h-3.5 w-3.5" />
+                      </button>
+                    )}
+                  </div>
+                </div>
 
-              <div className="grid gap-2">
-                <Label>Usuario</Label>
-                <Select value={filterUser} onValueChange={(v) => { setFilterUser(v); setPage(1); }}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">Todos</SelectItem>
-                    {activeUserIds.map((uid) => {
-                      const user = getUser(uid);
-                      return (
-                        <SelectItem key={uid} value={uid}>
-                          {user?.name || uid}
+                {/* Row 2: Filters grid */}
+                <div className="grid gap-3 grid-cols-2 sm:grid-cols-5 mt-3">
+                  <Select value={filterType} onValueChange={(v) => { setFilterType(v); setPage(1); }}>
+                    <SelectTrigger className="h-9 text-xs">
+                      <div className="flex items-center gap-1.5">
+                        <Filter className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                        <SelectValue placeholder="Tipo" />
+                      </div>
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Todos os tipos</SelectItem>
+                      <SelectItem value="entry">Entrada</SelectItem>
+                      <SelectItem value="exit">Saida</SelectItem>
+                      <SelectItem value="invoice">Nota Fiscal</SelectItem>
+                      <SelectItem value="reform_send">Envio Reforma</SelectItem>
+                      <SelectItem value="reform_return">Retorno Reforma</SelectItem>
+                    </SelectContent>
+                  </Select>
+
+                  <Select value={filterCabinet} onValueChange={(v) => { setFilterCabinet(v); setPage(1); }}>
+                    <SelectTrigger className="h-9 text-xs">
+                      <div className="flex items-center gap-1.5">
+                        <Archive className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                        <SelectValue placeholder="Armario" />
+                      </div>
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Todos os armarios</SelectItem>
+                      {cabinets.map((c) => (
+                        <SelectItem key={c.id} value={c.id}>
+                          {c.name}{c.isReformOnly ? " (R)" : ""}
                         </SelectItem>
-                      );
-                    })}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
+                      ))}
+                    </SelectContent>
+                  </Select>
 
-            {/* Row 3: Date pickers - stacked on mobile */}
-            <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 mt-4">
-              <div className="grid gap-2">
-                <Label>Data Inicio</Label>
-                <Input
-                  type="date"
-                  value={dateFrom}
-                  onChange={(e) => { setDateFrom(e.target.value); setPage(1); }}
-                />
-              </div>
-              <div className="grid gap-2">
-                <Label>Data Fim</Label>
-                <Input
-                  type="date"
-                  value={dateTo}
-                  onChange={(e) => { setDateTo(e.target.value); setPage(1); }}
-                />
-              </div>
-            </div>
+                  <Select value={filterUser} onValueChange={(v) => { setFilterUser(v); setPage(1); }}>
+                    <SelectTrigger className="h-9 text-xs">
+                      <div className="flex items-center gap-1.5">
+                        <User className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                        <SelectValue placeholder="Usuario" />
+                      </div>
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Todos os usuarios</SelectItem>
+                      {activeUserIds.map((uid) => {
+                        const user = getUser(uid);
+                        return (
+                          <SelectItem key={uid} value={uid}>
+                            {user?.name || uid}
+                          </SelectItem>
+                        );
+                      })}
+                    </SelectContent>
+                  </Select>
 
-            {/* Row 4: Actions */}
-            <div className="flex flex-col gap-2 mt-4 sm:flex-row sm:justify-between">
-              <Button variant="outline" onClick={clearFilters} className="w-full sm:w-auto">
-                Limpar Filtros
-              </Button>
-              <Button variant="secondary" onClick={handleExport} disabled={filteredMovements.length === 0} className="w-full sm:w-auto">
-                <Download className="mr-2 h-4 w-4" />
-                Exportar CSV ({filteredMovements.length})
-              </Button>
-            </div>
-          </CardContent>
+                  <div className="relative">
+                    <Calendar className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground pointer-events-none" />
+                    <Input
+                      type="date"
+                      value={dateFrom}
+                      onChange={(e) => { setDateFrom(e.target.value); setPage(1); }}
+                      className="h-9 text-xs pl-8"
+                      placeholder="Data inicio"
+                    />
+                  </div>
+
+                  <div className="relative">
+                    <Calendar className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground pointer-events-none" />
+                    <Input
+                      type="date"
+                      value={dateTo}
+                      onChange={(e) => { setDateTo(e.target.value); setPage(1); }}
+                      className="h-9 text-xs pl-8"
+                      placeholder="Data fim"
+                    />
+                  </div>
+                </div>
+
+                {/* Active filters pills */}
+                {(activeFilters.length > 0 || searchTerm) && (
+                  <div className="flex flex-wrap items-center gap-1.5 mt-3">
+                    {searchTerm && (
+                      <Badge variant="secondary" className="text-[11px] gap-1 pr-1">
+                        Busca: &quot;{searchTerm.slice(0, 20)}&quot;
+                        <button type="button" onClick={() => { setSearchTerm(""); setPage(1); }} className="ml-0.5 hover:text-destructive">
+                          <X className="h-3 w-3" />
+                        </button>
+                      </Badge>
+                    )}
+                    {activeFilters.map((f) => (
+                      <Badge key={f.key} variant="secondary" className="text-[11px] gap-1 pr-1">
+                        {f.label}
+                        <button type="button" onClick={f.onRemove} className="ml-0.5 hover:text-destructive">
+                          <X className="h-3 w-3" />
+                        </button>
+                      </Badge>
+                    ))}
+                    <button type="button" onClick={clearFilters} className="text-[11px] text-muted-foreground hover:text-foreground underline underline-offset-2 ml-1">
+                      Limpar tudo
+                    </button>
+                  </div>
+                )}
+              </CardContent>
+            </CollapsibleContent>
+          </Collapsible>
         </Card>
 
         {/* Summary Cards */}
@@ -638,7 +876,6 @@ export default function HistoryPage() {
                 </DialogTitle>
               </DialogHeader>
               <div className="space-y-4">
-                {/* Date */}
                 <div className="flex items-center justify-between text-sm">
                   <span className="text-muted-foreground">Data/Hora</span>
                   <span className="font-medium">
@@ -647,7 +884,6 @@ export default function HistoryPage() {
                   </span>
                 </div>
 
-                {/* Tool */}
                 <div className="p-3 rounded-lg bg-secondary/50 space-y-1">
                   <div className="flex items-center gap-2">
                     {tool?.code ? (
@@ -660,7 +896,6 @@ export default function HistoryPage() {
                   <p className="text-sm text-muted-foreground">{tool?.description || "Ferramenta removida"}</p>
                 </div>
 
-                {/* Quantity */}
                 <div className="flex items-center justify-between text-sm">
                   <span className="text-muted-foreground">Quantidade</span>
                   <span className={`text-lg font-bold ${isPositive ? "text-success" : "text-destructive"}`}>
@@ -668,7 +903,6 @@ export default function HistoryPage() {
                   </span>
                 </div>
 
-                {/* Location */}
                 <div className="flex items-center justify-between text-sm">
                   <span className="text-muted-foreground">Localizacao</span>
                   <span className="font-medium">
@@ -678,13 +912,11 @@ export default function HistoryPage() {
                   </span>
                 </div>
 
-                {/* User */}
                 <div className="flex items-center justify-between text-sm">
                   <span className="text-muted-foreground">Usuario</span>
                   <span className="font-medium">{user?.name || selectedMovement.userId}</span>
                 </div>
 
-                {/* Invoice */}
                 {selectedMovement.invoiceNumber && (
                   <div className="flex items-center justify-between text-sm">
                     <span className="text-muted-foreground">Nota Fiscal</span>
@@ -692,7 +924,6 @@ export default function HistoryPage() {
                   </div>
                 )}
 
-                {/* Supplier */}
                 {selectedMovement.supplier && (
                   <div className="flex items-center justify-between text-sm">
                     <span className="text-muted-foreground">Fornecedor</span>
@@ -700,7 +931,6 @@ export default function HistoryPage() {
                   </div>
                 )}
 
-                {/* Estimated Return */}
                 {selectedMovement.estimatedReturn && (
                   <div className="flex items-center justify-between text-sm">
                     <span className="text-muted-foreground">Retorno Estimado</span>
@@ -710,7 +940,6 @@ export default function HistoryPage() {
                   </div>
                 )}
 
-                {/* Notes */}
                 {selectedMovement.notes && (
                   <div className="space-y-1">
                     <p className="text-sm text-muted-foreground">Observacoes</p>
@@ -718,7 +947,6 @@ export default function HistoryPage() {
                   </div>
                 )}
 
-                {/* Movement ID for debugging / Supabase reference */}
                 <div className="pt-2 border-t border-border">
                   <p className="text-[10px] text-muted-foreground font-mono">ID: {selectedMovement.id}</p>
                 </div>
