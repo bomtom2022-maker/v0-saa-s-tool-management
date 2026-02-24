@@ -16,6 +16,14 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import {
   Wrench,
   Package,
   Search,
@@ -23,34 +31,31 @@ import {
   Archive,
   AlertTriangle,
   Clock,
-  FileText,
+  Plus,
+  Trash2,
   Send,
-  Calendar,
-  ClipboardList,
+  ShoppingCart,
 } from "lucide-react";
 import { type Tool } from "@/lib/mock-data";
 import { useDataStore } from "@/lib/data-store";
 import { useNotifications } from "@/lib/notifications";
 import { PriceTag } from "@/components/dashboard/price-tag";
 import { ToolCodeDisplay } from "@/components/dashboard/tool-code-display";
+import Link from "next/link";
 
 export default function ReformaPage() {
-  const { tools, cabinets, drawers, toolTypes, movements, setMovements, suppliers } = useDataStore();
+  const { tools, cabinets, drawers, toolTypes, movements, suppliers, reformQueue, setReformQueue } = useDataStore();
   const { addNotification } = useNotifications();
   const [selectedTool, setSelectedTool] = useState<Tool | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [quantity, setQuantity] = useState("");
-  const [notaNumber, setNotaNumber] = useState("");
-  const [packingListNumber, setPackingListNumber] = useState("");
   const [selectedSupplierId, setSelectedSupplierId] = useState("");
-  const [estimatedReturn, setEstimatedReturn] = useState("");
   const [notes, setNotes] = useState("");
   const [filterCabinetId, setFilterCabinetId] = useState("all");
   const [success, setSuccess] = useState(false);
   const [successMsg, setSuccessMsg] = useState("");
   const [currentTime, setCurrentTime] = useState<Date | null>(null);
-  
-  // Live clock - only on client to avoid hydration mismatch
+
   useEffect(() => {
     setCurrentTime(new Date());
     const interval = setInterval(() => setCurrentTime(new Date()), 1000);
@@ -72,8 +77,9 @@ export default function ReformaPage() {
     return d ? `Gaveta ${d.number}` : "";
   };
 
-  const formatDateTime = (date: Date) => {
-    return date.toLocaleString("pt-BR", {
+  const formatDateTime = (date: Date | string) => {
+    const d = typeof date === "string" ? new Date(date) : date;
+    return d.toLocaleString("pt-BR", {
       day: "2-digit",
       month: "2-digit",
       year: "numeric",
@@ -83,7 +89,6 @@ export default function ReformaPage() {
     });
   };
 
-  // Count how many are currently out for reform (from movements)
   const getReformCount = (toolId: string) => {
     let out = 0;
     for (const m of movements) {
@@ -93,103 +98,115 @@ export default function ReformaPage() {
     return Math.max(0, out);
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  // Get queue count for a specific tool
+  const getQueueCount = (toolId: string) => {
+    return reformQueue.filter(q => q.toolId === toolId).reduce((sum, q) => sum + q.quantity, 0);
+  };
+
+  const handleAddToQueue = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!selectedTool || !quantity) return;
+    if (!selectedTool || !quantity || !selectedSupplierId) return;
 
     const qty = Number(quantity);
     if (qty <= 0 || isNaN(qty)) return;
 
-    const timestamp = new Date();
-
-    // Reform send does NOT subtract from cabinet stock.
-    // The tools going to reform come from machines (daily exits), not from the cabinet.
-    // Only reform_return (entrada) adds stock back to the reform cabinet.
-
     const supplierName = suppliers.find(s => s.id === selectedSupplierId)?.name || "";
-    const movementNotes = [
-      notaNumber ? `Nota: ${notaNumber}` : null,
-      packingListNumber ? `Romaneio: ${packingListNumber}` : null,
-      supplierName ? `Fornecedor: ${supplierName}` : null,
-      notes || null,
-    ].filter(Boolean).join(" | ");
 
-    setMovements(prev => [
-      {
-        id: `mov-${Date.now()}`,
-        type: "reform_send" as const,
-        toolId: selectedTool.id,
-        userId: "eng-processo-1",
-        quantity: qty,
-        date: timestamp.toISOString(),
-        notes: movementNotes || "Enviado para reforma",
-        invoiceNumber: notaNumber || undefined,
-        packingListNumber: packingListNumber || undefined,
-        supplier: supplierName || undefined,
-        estimatedReturn: estimatedReturn || undefined,
-      },
-      ...prev,
-    ]);
+    const newItem = {
+      id: `rq-${Date.now()}`,
+      toolId: selectedTool.id,
+      quantity: qty,
+      supplierId: selectedSupplierId,
+      supplierName,
+      notes: notes || "",
+      addedAt: new Date().toISOString(),
+      addedBy: "eng-processo-1",
+    };
+
+    setReformQueue(prev => [newItem, ...prev]);
 
     setSuccessMsg(
-      `Reforma registrada em ${formatDateTime(timestamp)}: ${qty} un. de ${selectedTool.code} enviada(s) para reforma${supplierName ? ` | Fornecedor: ${supplierName}` : ""}${notaNumber ? ` | Nota: ${notaNumber}` : ""}${packingListNumber ? ` | Romaneio: ${packingListNumber}` : ""} | Estoque no armario: ${selectedTool.quantity} (sem alteracao)`
+      `${qty} un. de ${selectedTool.code} adicionada(s) a fila de reforma | Fornecedor: ${supplierName}`
     );
     addNotification({
-      type: "reform_send",
-      title: "Envio para Reforma",
-      message: `${qty} un. de ${selectedTool.code} (${selectedTool.description}) enviadas para reforma${supplierName ? ` | ${supplierName}` : ""}${notaNumber ? ` | NF: ${notaNumber}` : ""}${packingListNumber ? ` | Rom: ${packingListNumber}` : ""}`,
+      type: "info",
+      title: "Item adicionado a fila de reforma",
+      message: `${qty} un. de ${selectedTool.code} (${selectedTool.description}) para ${supplierName}`,
     });
     setSuccess(true);
-    setTimeout(() => setSuccess(false), 5000);
+    setTimeout(() => setSuccess(false), 4000);
     setSelectedTool(null);
     setQuantity("");
-    setNotaNumber("");
-    setPackingListNumber("");
     setSelectedSupplierId("");
-    setEstimatedReturn("");
     setNotes("");
     setSearchTerm("");
   };
 
+  const handleRemoveFromQueue = (itemId: string) => {
+    setReformQueue(prev => prev.filter(q => q.id !== itemId));
+  };
+
+  const getToolInfo = (toolId: string) => tools.find(t => t.id === toolId);
+
   return (
     <div className="min-h-screen">
       <Header
-        title="Reforma de Ferramentas"
-        subtitle="Registre o envio de ferramentas para reforma / afiacao"
+        title="Fila de Reforma"
+        subtitle="Adicione ferramentas a fila para envio semanal ao fornecedor"
       />
 
       <div className="p-4 md:p-6 space-y-4 md:space-y-6">
-        {/* Info Card */}
-        <Card className="bg-primary/5 border-primary/20">
-          <CardContent className="flex items-center justify-between gap-4 p-4">
-            <div className="flex items-center gap-4">
-              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-orange-500/20">
+        {/* Info Card + Queue Counter */}
+        <div className="grid gap-4 sm:grid-cols-2">
+          <Card className="bg-primary/5 border-primary/20">
+            <CardContent className="flex items-center gap-4 p-4">
+              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-orange-500/20 shrink-0">
                 <Wrench className="h-5 w-5 text-orange-500" />
               </div>
-              <div>
+              <div className="min-w-0">
                 <p className="text-sm font-medium text-foreground">
-                  Envio para Reforma
+                  Adicionar a Fila
                 </p>
                 <p className="text-xs text-muted-foreground">
-                  Registre o envio de ferramentas usadas (vindas das maquinas) para reforma. O estoque do armario nao e alterado.
+                  Busque as ferramentas, selecione o fornecedor e a quantidade. Depois va em "Enviar para Reforma" para finalizar o envio com NF e romaneio.
                 </p>
               </div>
-            </div>
-            {currentTime && (
-              <div className="hidden sm:flex items-center gap-2 text-sm font-mono bg-background rounded-lg px-3 py-2 border border-border">
-                <Clock className="h-4 w-4 text-primary" />
-                <span className="text-foreground">{formatDateTime(currentTime)}</span>
+            </CardContent>
+          </Card>
+
+          <Card className={`border ${reformQueue.length > 0 ? "border-orange-500/30 bg-orange-500/5" : "border-border bg-card"}`}>
+            <CardContent className="flex items-center justify-between gap-4 p-4">
+              <div className="flex items-center gap-4">
+                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-orange-500/20 shrink-0">
+                  <ShoppingCart className="h-5 w-5 text-orange-500" />
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-foreground">
+                    Itens na Fila
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    {reformQueue.length} {reformQueue.length === 1 ? "item" : "itens"} | {reformQueue.reduce((s, q) => s + q.quantity, 0)} un. total
+                  </p>
+                </div>
               </div>
-            )}
-          </CardContent>
-        </Card>
+              {reformQueue.length > 0 && (
+                <Link href="/operacoes/enviar-reforma">
+                  <Button size="sm" className="bg-orange-600 hover:bg-orange-700 text-white">
+                    <Send className="mr-2 h-4 w-4" />
+                    Enviar
+                  </Button>
+                </Link>
+              )}
+            </CardContent>
+          </Card>
+        </div>
 
         {success && (
           <Card className="bg-success/10 border-success/30">
             <CardContent className="flex items-center gap-4 p-4">
               <CheckCircle className="h-6 w-6 text-success shrink-0" />
               <div>
-                <p className="font-medium text-foreground">Reforma Registrada!</p>
+                <p className="font-medium text-foreground">Adicionado a Fila!</p>
                 <p className="text-sm text-muted-foreground">{successMsg}</p>
               </div>
             </CardContent>
@@ -201,7 +218,7 @@ export default function ReformaPage() {
           <Card className="bg-card border-border">
             <CardHeader>
               <CardTitle>Selecionar Ferramenta</CardTitle>
-              <CardDescription>Filtre por armario e busque a ferramenta que sera enviada para reforma</CardDescription>
+              <CardDescription>Filtre por armario e busque a ferramenta para adicionar a fila</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="grid gap-2">
@@ -237,6 +254,7 @@ export default function ReformaPage() {
                 ) : searchTerm ? (
                   filteredTools.map((tool) => {
                     const reformOut = getReformCount(tool.id);
+                    const queueCount = getQueueCount(tool.id);
                     return (
                       <div
                         key={tool.id}
@@ -274,6 +292,11 @@ export default function ReformaPage() {
                               Em reforma: {reformOut}
                             </p>
                           )}
+                          {queueCount > 0 && (
+                            <p className="text-xs text-sky-500">
+                              Na fila: {queueCount}
+                            </p>
+                          )}
                         </div>
                       </div>
                     );
@@ -287,14 +310,14 @@ export default function ReformaPage() {
             </CardContent>
           </Card>
 
-          {/* Reform Form */}
+          {/* Add to Queue Form */}
           <Card className="bg-card border-border">
             <CardHeader>
-              <CardTitle>Dados da Reforma</CardTitle>
-              <CardDescription>Preencha os dados do envio para reforma</CardDescription>
+              <CardTitle>Adicionar a Fila</CardTitle>
+              <CardDescription>Selecione o fornecedor e a quantidade para adicionar a fila de envio</CardDescription>
             </CardHeader>
             <CardContent>
-              <form onSubmit={handleSubmit} className="space-y-4">
+              <form onSubmit={handleAddToQueue} className="space-y-4">
                 {/* Selected Tool */}
                 {selectedTool ? (
                   <div className="p-4 rounded-lg bg-secondary">
@@ -321,13 +344,18 @@ export default function ReformaPage() {
                       <div className="flex items-center gap-1">
                         {"Estoque armario: "}
                         <span className="font-bold">{selectedTool.quantity}</span>
-                        <span className="text-xs text-muted-foreground">(nao altera)</span>
                       </div>
                     </div>
                     {getReformCount(selectedTool.id) > 0 && (
                       <div className="mt-2 flex items-center gap-2 text-xs text-orange-500">
                         <AlertTriangle className="h-3 w-3" />
                         Ja ha {getReformCount(selectedTool.id)} un. em reforma atualmente
+                      </div>
+                    )}
+                    {getQueueCount(selectedTool.id) > 0 && (
+                      <div className="mt-1 flex items-center gap-2 text-xs text-sky-500">
+                        <ShoppingCart className="h-3 w-3" />
+                        Ja ha {getQueueCount(selectedTool.id)} un. na fila de envio
                       </div>
                     )}
                     {/* Return code preview */}
@@ -350,51 +378,9 @@ export default function ReformaPage() {
                   </div>
                 )}
 
-                {/* Date/Time - automatic */}
-                <div className="grid gap-2">
-                  <Label className="flex items-center gap-2">
-                    <Clock className="h-4 w-4 text-muted-foreground" />
-                    Data/Hora do Envio
-                  </Label>
-                  <div className="flex items-center gap-2 rounded-md border border-border bg-muted px-3 py-2">
-                    <span className="text-sm font-mono text-foreground">{currentTime ? formatDateTime(currentTime) : "--/--/----, --:--:--"}</span>
-                    <Badge variant="outline" className="ml-auto text-xs">Automatico</Badge>
-                  </div>
-                </div>
-
-                {/* Nota number */}
-                <div className="grid gap-2">
-                  <Label htmlFor="notaNumber" className="flex items-center gap-2">
-                    <FileText className="h-4 w-4 text-muted-foreground" />
-                    Numero da Nota
-                  </Label>
-                  <Input
-                    id="notaNumber"
-                    placeholder="Ex: NF-2026-001234"
-                    value={notaNumber}
-                    onChange={(e) => setNotaNumber(e.target.value)}
-                    disabled={!selectedTool}
-                  />
-                </div>
-
-                {/* Packing List Number (Romaneio) */}
-                <div className="grid gap-2">
-                  <Label htmlFor="packingListNumber" className="flex items-center gap-2">
-                    <ClipboardList className="h-4 w-4 text-muted-foreground" />
-                    Numero do Romaneio
-                  </Label>
-                  <Input
-                    id="packingListNumber"
-                    placeholder="Ex: ROM-2026-000123"
-                    value={packingListNumber}
-                    onChange={(e) => setPackingListNumber(e.target.value)}
-                    disabled={!selectedTool}
-                  />
-                </div>
-
                 {/* Supplier */}
                 <div className="grid gap-2">
-                  <Label>Fornecedor (Destino da Reforma)</Label>
+                  <Label>Fornecedor (Destino da Reforma) *</Label>
                   <Select value={selectedSupplierId} onValueChange={setSelectedSupplierId} disabled={!selectedTool}>
                     <SelectTrigger>
                       <SelectValue placeholder="Selecione o fornecedor" />
@@ -410,24 +396,6 @@ export default function ReformaPage() {
                   </p>
                 </div>
 
-                {/* Estimated Return Date */}
-                <div className="grid gap-2">
-                  <Label htmlFor="estimatedReturn" className="flex items-center gap-2">
-                    <Calendar className="h-4 w-4 text-muted-foreground" />
-                    Data Estimada de Retorno
-                  </Label>
-                  <Input
-                    id="estimatedReturn"
-                    type="date"
-                    value={estimatedReturn}
-                    onChange={(e) => setEstimatedReturn(e.target.value)}
-                    disabled={!selectedTool}
-                  />
-                  <p className="text-xs text-muted-foreground">
-                    Opcional. Previsao de quando a ferramenta retorna da reforma. Usado para controle de atrasos.
-                  </p>
-                </div>
-
                 {/* Quantity */}
                 <div className="grid gap-2">
                   <Label htmlFor="reformQty">Quantidade *</Label>
@@ -435,7 +403,7 @@ export default function ReformaPage() {
                     id="reformQty"
                     type="number"
                     min="1"
-                    placeholder="Quantidade enviada para reforma"
+                    placeholder="Quantidade para reforma"
                     value={quantity}
                     onChange={(e) => setQuantity(e.target.value)}
                     required
@@ -448,7 +416,7 @@ export default function ReformaPage() {
                   <Label htmlFor="reformNotes">Observacoes</Label>
                   <Textarea
                     id="reformNotes"
-                    placeholder="Tipo de reforma, prazo previsto, informacoes adicionais..."
+                    placeholder="Informacoes adicionais sobre a reforma..."
                     value={notes}
                     onChange={(e) => setNotes(e.target.value)}
                     disabled={!selectedTool}
@@ -458,15 +426,91 @@ export default function ReformaPage() {
                 <Button
                   type="submit"
                   className="w-full bg-orange-600 hover:bg-orange-700 text-white"
-                  disabled={!selectedTool || !quantity || Number(quantity) <= 0}
+                  disabled={!selectedTool || !quantity || Number(quantity) <= 0 || !selectedSupplierId}
                 >
-                  <Send className="mr-2 h-4 w-4" />
-                  Registrar Envio para Reforma
+                  <Plus className="mr-2 h-4 w-4" />
+                  Adicionar a Fila de Reforma
                 </Button>
               </form>
             </CardContent>
           </Card>
         </div>
+
+        {/* Queue Table */}
+        {reformQueue.length > 0 && (
+          <Card className="bg-card border-border">
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle className="flex items-center gap-2">
+                    <ShoppingCart className="h-5 w-5 text-orange-500" />
+                    Fila de Envio para Reforma
+                  </CardTitle>
+                  <CardDescription>
+                    {reformQueue.length} {reformQueue.length === 1 ? "item" : "itens"} aguardando envio | {reformQueue.reduce((s, q) => s + q.quantity, 0)} un. total
+                  </CardDescription>
+                </div>
+                <Link href="/operacoes/enviar-reforma">
+                  <Button className="bg-orange-600 hover:bg-orange-700 text-white">
+                    <Send className="mr-2 h-4 w-4" />
+                    Enviar para Reforma
+                  </Button>
+                </Link>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Codigo</TableHead>
+                      <TableHead>Descricao</TableHead>
+                      <TableHead className="text-center">Qtd</TableHead>
+                      <TableHead>Fornecedor</TableHead>
+                      <TableHead>Observacoes</TableHead>
+                      <TableHead>Adicionado em</TableHead>
+                      <TableHead className="w-[60px]"></TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {reformQueue.map((item) => {
+                      const tool = getToolInfo(item.toolId);
+                      return (
+                        <TableRow key={item.id}>
+                          <TableCell>
+                            {tool ? <ToolCodeDisplay code={tool.code} className="font-medium" /> : <span className="text-muted-foreground">N/A</span>}
+                          </TableCell>
+                          <TableCell className="text-sm max-w-[200px] truncate">
+                            {tool?.description || "N/A"}
+                          </TableCell>
+                          <TableCell className="text-center font-bold">{item.quantity}</TableCell>
+                          <TableCell className="text-sm">{item.supplierName}</TableCell>
+                          <TableCell className="text-sm text-muted-foreground max-w-[150px] truncate">
+                            {item.notes || "-"}
+                          </TableCell>
+                          <TableCell className="text-sm text-muted-foreground whitespace-nowrap">
+                            {formatDateTime(item.addedAt)}
+                          </TableCell>
+                          <TableCell>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
+                              onClick={() => handleRemoveFromQueue(item.id)}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                              <span className="sr-only">Remover da fila</span>
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+              </div>
+            </CardContent>
+          </Card>
+        )}
       </div>
     </div>
   );

@@ -78,6 +78,19 @@ export interface Supplier {
   isActive: boolean;
 }
 
+export interface ReformQueueItem {
+  id: string;
+  toolId: string;
+  quantity: number;
+  supplierId: string;
+  supplierName: string;
+  notes: string;
+  addedAt: string; // ISO date - quando foi adicionado a fila
+  addedBy: string; // userId
+}
+
+export const mockReformQueue: ReformQueueItem[] = [];
+
 export interface Movement {
   id: string;
   type: 'entry' | 'exit' | 'reform_send' | 'reform_return' | 'invoice';
