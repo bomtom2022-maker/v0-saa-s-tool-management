@@ -41,8 +41,9 @@ import {
   Palette,
 } from "lucide-react";
 import { type ToolStatus } from "@/lib/mock-data";
-import { useDataStore } from "@/lib/data-store";
-
+  import { useDataStore } from "@/lib/data-store";
+  import { useNotifications } from "@/lib/notifications";
+  
 const colorOptions = [
   // Verdes
   { value: "bg-green-400", label: "Verde Claro", hex: "#4ade80" },
@@ -86,8 +87,9 @@ const colorOptions = [
   { value: "bg-lime-600", label: "Lima Escuro", hex: "#65a30d" },
 ];
 
-export default function StatusPage() {
+  export default function StatusPage() {
   const { statuses, setStatuses } = useDataStore();
+  const { addNotification } = useNotifications();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingStatus, setEditingStatus] = useState<ToolStatus | null>(null);
   const [selectedColor, setSelectedColor] = useState("bg-success");
@@ -102,18 +104,22 @@ export default function StatusPage() {
       isActive: true,
     };
 
-    if (editingStatus) {
-      setStatuses(statuses.map((s) => (s.id === editingStatus.id ? newStatus : s)));
-    } else {
-      setStatuses([...statuses, newStatus]);
-    }
-    setIsDialogOpen(false);
-    setEditingStatus(null);
-    setSelectedColor("bg-success");
+  if (editingStatus) {
+    setStatuses(statuses.map((s) => (s.id === editingStatus.id ? newStatus : s)));
+    addNotification({ type: "edit", title: "Status Editado", message: `Status "${newStatus.name}" foi atualizado.` });
+  } else {
+    setStatuses([...statuses, newStatus]);
+    addNotification({ type: "add", title: "Novo Status", message: `Status "${newStatus.name}" cadastrado no sistema.` });
+  }
+  setIsDialogOpen(false);
+  setEditingStatus(null);
+  setSelectedColor("bg-success");
   };
-
+  
   const handleDelete = (id: string) => {
+    const st = statuses.find(s => s.id === id);
     setStatuses(statuses.filter((s) => s.id !== id));
+    if (st) addNotification({ type: "delete", title: "Status Removido", message: `Status "${st.name}" foi removido.` });
   };
 
   const handleEdit = (status: ToolStatus) => {

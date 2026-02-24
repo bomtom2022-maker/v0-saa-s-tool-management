@@ -58,6 +58,8 @@ import {
   Search,
   Layers,
   AlertTriangle,
+  Check,
+  X,
 } from "lucide-react";
 import {
   type Cabinet,
@@ -83,6 +85,39 @@ export default function CabinetsPage() {
   const [selectedDrawer, setSelectedDrawer] = useState<Drawer | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [globalSearch, setGlobalSearch] = useState("");
+  const [inlineEditId, setInlineEditId] = useState<string | null>(null);
+  const [inlineQty, setInlineQty] = useState("");
+  const [inlineMinStock, setInlineMinStock] = useState("");
+
+  const startInlineEdit = (tool: Tool) => {
+    setInlineEditId(tool.id);
+    setInlineQty(String(tool.quantity));
+    setInlineMinStock(String(tool.minStock));
+  };
+
+  const cancelInlineEdit = () => {
+    setInlineEditId(null);
+    setInlineQty("");
+    setInlineMinStock("");
+  };
+
+  const saveInlineEdit = (toolId: string) => {
+    const newQty = Math.max(0, Number(inlineQty) || 0);
+    const newMin = Math.max(0, Number(inlineMinStock) || 0);
+    const tool = tools.find(t => t.id === toolId);
+    if (!tool) return;
+    setTools(tools.map(t =>
+      t.id === toolId ? { ...t, quantity: newQty, minStock: newMin } : t
+    ));
+    if (tool.quantity !== newQty || tool.minStock !== newMin) {
+      addNotification({
+        type: "edit",
+        title: "Quantidade editada",
+        message: `${tool.code}: Qtd ${tool.quantity} -> ${newQty}, Est. Min ${tool.minStock} -> ${newMin}`,
+      });
+    }
+    cancelInlineEdit();
+  };
 
   // Global search across ALL cabinets
   const globalSearchResults = useMemo(() => {
@@ -556,12 +591,61 @@ export default function CabinetsPage() {
                                 </span>
                               </TableCell>
                               <TableCell className="text-center">
-                                <span className={`font-semibold ${isLowStock ? "text-warning" : "text-foreground"}`}>
-                                  {tool.quantity}
-                                </span>
+                                {inlineEditId === tool.id ? (
+                                  <Input
+                                    type="number"
+                                    min="0"
+                                    value={inlineQty}
+                                    onChange={(e) => setInlineQty(e.target.value)}
+                                    onKeyDown={(e) => {
+                                      if (e.key === "Enter") saveInlineEdit(tool.id);
+                                      if (e.key === "Escape") cancelInlineEdit();
+                                    }}
+                                    className="h-7 w-16 text-center text-sm mx-auto"
+                                    autoFocus
+                                  />
+                                ) : (
+                                  <button
+                                    type="button"
+                                    onClick={() => startInlineEdit(tool)}
+                                    className={`font-semibold cursor-pointer hover:underline ${isLowStock ? "text-warning" : "text-foreground"}`}
+                                    title="Clique para editar"
+                                  >
+                                    {tool.quantity}
+                                  </button>
+                                )}
                               </TableCell>
-                              <TableCell className="text-center text-sm text-muted-foreground">
-                                {tool.minStock}
+                              <TableCell className="text-center">
+                                {inlineEditId === tool.id ? (
+                                  <div className="flex items-center justify-center gap-1">
+                                    <Input
+                                      type="number"
+                                      min="0"
+                                      value={inlineMinStock}
+                                      onChange={(e) => setInlineMinStock(e.target.value)}
+                                      onKeyDown={(e) => {
+                                        if (e.key === "Enter") saveInlineEdit(tool.id);
+                                        if (e.key === "Escape") cancelInlineEdit();
+                                      }}
+                                      className="h-7 w-16 text-center text-sm"
+                                    />
+                                    <Button variant="ghost" size="icon" className="h-6 w-6 text-success" onClick={() => saveInlineEdit(tool.id)}>
+                                      <Check className="h-3.5 w-3.5" />
+                                    </Button>
+                                    <Button variant="ghost" size="icon" className="h-6 w-6 text-destructive" onClick={cancelInlineEdit}>
+                                      <X className="h-3.5 w-3.5" />
+                                    </Button>
+                                  </div>
+                                ) : (
+                                  <button
+                                    type="button"
+                                    onClick={() => startInlineEdit(tool)}
+                                    className="text-sm text-muted-foreground cursor-pointer hover:underline"
+                                    title="Clique para editar"
+                                  >
+                                    {tool.minStock}
+                                  </button>
+                                )}
                               </TableCell>
                               <TableCell>
                                 {status && (
@@ -1357,16 +1441,75 @@ export default function CabinetsPage() {
                               </TableCell>
                               <TableCell className="text-center">
                                 {tool ? (
-                                  <span className={`font-semibold ${isLowStock ? "text-warning" : "text-foreground"}`}>
-                                    {tool.quantity}
-                                  </span>
+                                  inlineEditId === tool.id ? (
+                                    <Input
+                                      type="number"
+                                      min="0"
+                                      value={inlineQty}
+                                      onChange={(e) => setInlineQty(e.target.value)}
+                                      onKeyDown={(e) => {
+                                        if (e.key === "Enter") saveInlineEdit(tool.id);
+                                        if (e.key === "Escape") cancelInlineEdit();
+                                      }}
+                                      className="h-7 w-16 text-center text-sm mx-auto"
+                                      autoFocus
+                                    />
+                                  ) : (
+                                    <button
+                                      type="button"
+                                      onClick={() => startInlineEdit(tool)}
+                                      className={`font-semibold cursor-pointer hover:underline ${isLowStock ? "text-warning" : "text-foreground"}`}
+                                      title="Clique para editar"
+                                    >
+                                      {tool.quantity}
+                                    </button>
+                                  )
                                 ) : (
                                   <span className="text-muted-foreground">--</span>
                                 )}
                               </TableCell>
                               <TableCell className="text-center">
                                 {tool ? (
-                                  <span className="text-sm text-muted-foreground">{tool.minStock}</span>
+                                  inlineEditId === tool.id ? (
+                                    <div className="flex items-center justify-center gap-1">
+                                      <Input
+                                        type="number"
+                                        min="0"
+                                        value={inlineMinStock}
+                                        onChange={(e) => setInlineMinStock(e.target.value)}
+                                        onKeyDown={(e) => {
+                                          if (e.key === "Enter") saveInlineEdit(tool.id);
+                                          if (e.key === "Escape") cancelInlineEdit();
+                                        }}
+                                        className="h-7 w-16 text-center text-sm"
+                                      />
+                                      <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        className="h-6 w-6 text-success"
+                                        onClick={() => saveInlineEdit(tool.id)}
+                                      >
+                                        <Check className="h-3.5 w-3.5" />
+                                      </Button>
+                                      <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        className="h-6 w-6 text-destructive"
+                                        onClick={cancelInlineEdit}
+                                      >
+                                        <X className="h-3.5 w-3.5" />
+                                      </Button>
+                                    </div>
+                                  ) : (
+                                    <button
+                                      type="button"
+                                      onClick={() => startInlineEdit(tool)}
+                                      className="text-sm text-muted-foreground cursor-pointer hover:underline"
+                                      title="Clique para editar"
+                                    >
+                                      {tool.minStock}
+                                    </button>
+                                  )
                                 ) : (
                                   <span className="text-muted-foreground">--</span>
                                 )}

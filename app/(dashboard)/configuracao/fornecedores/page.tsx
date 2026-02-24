@@ -34,11 +34,13 @@ import {
   Mail,
   FileText,
 } from "lucide-react";
-import { useDataStore } from "@/lib/data-store";
-import { type Supplier } from "@/lib/mock-data";
-
-export default function FornecedoresPage() {
+  import { useDataStore } from "@/lib/data-store";
+  import { useNotifications } from "@/lib/notifications";
+  import { type Supplier } from "@/lib/mock-data";
+  
+  export default function FornecedoresPage() {
   const { suppliers, setSuppliers } = useDataStore();
+  const { addNotification } = useNotifications();
   const [searchTerm, setSearchTerm] = useState("");
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingSupplier, setEditingSupplier] = useState<Supplier | null>(null);
@@ -84,12 +86,13 @@ export default function FornecedoresPage() {
     if (!formName.trim()) return;
 
     if (editingSupplier) {
-      setSuppliers((prev) =>
-        prev.map((s) =>
-          s.id === editingSupplier.id
-            ? {
-                ...s,
-                name: formName.trim(),
+    addNotification({ type: "edit", title: "Fornecedor Editado", message: `Fornecedor "${formName.trim()}" foi atualizado.` });
+    setSuppliers((prev) =>
+      prev.map((s) =>
+      s.id === editingSupplier.id
+      ? {
+      ...s,
+      name: formName.trim(),
                 cnpj: formCnpj.trim(),
                 contact: formContact.trim(),
                 phone: formPhone.trim(),
@@ -108,9 +111,10 @@ export default function FornecedoresPage() {
         email: formEmail.trim(),
         isActive: true,
       };
-      setSuppliers((prev) => [...prev, newSupplier]);
+    setSuppliers((prev) => [...prev, newSupplier]);
+      addNotification({ type: "supplier", title: "Novo Fornecedor", message: `Fornecedor "${formName.trim()}" cadastrado no sistema.` });
     }
-
+    
     setIsDialogOpen(false);
   };
 
@@ -121,7 +125,9 @@ export default function FornecedoresPage() {
   };
 
   const handleDelete = (id: string) => {
+    const sup = suppliers.find(s => s.id === id);
     setSuppliers((prev) => prev.filter((s) => s.id !== id));
+    if (sup) addNotification({ type: "delete", title: "Fornecedor Removido", message: `Fornecedor "${sup.name}" foi removido do sistema.` });
     setDeleteConfirm(null);
   };
 

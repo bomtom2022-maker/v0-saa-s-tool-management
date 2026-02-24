@@ -35,11 +35,13 @@ import {
 } from "lucide-react";
 import { type Tool } from "@/lib/mock-data";
 import { useDataStore } from "@/lib/data-store";
+import { useNotifications } from "@/lib/notifications";
 import { PriceTag } from "@/components/dashboard/price-tag";
 import { ToolCodeDisplay } from "@/components/dashboard/tool-code-display";
 
 export default function EntryPage() {
   const { tools, setTools, cabinets, drawers, toolTypes, movements, setMovements } = useDataStore();
+  const { addNotification } = useNotifications();
   const [tab, setTab] = useState("existing");
 
   // Existing tool state
@@ -129,13 +131,23 @@ export default function EntryPage() {
   const reformCabinets = cabinets.filter(c => c.isReformOnly);
   const normalCabinets = cabinets.filter(c => !c.isReformOnly);
 
+  // Find existing reformed tool for the selected tool (code + "R" in a reform cabinet)
+  const existingReformedToolForSelected = selectedTool
+    ? tools.find(t => {
+        const baseCode = selectedTool.code.replace(/R$/, "");
+        return t.code === baseCode + "R" && reformCabinets.some(c => c.id === t.cabinetId);
+      })
+    : null;
+  // If a reform is selected and the reformed tool already has a home, lock destination
+  const isReformDestLocked = !!selectedReform && !!existingReformedToolForSelected;
+
   // Handle existing tool entry
   const handleExistingEntry = (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedTool || !quantity) return;
 
-    const qty = Number(quantity);
-    if (isNaN(qty) || qty <= 0) return;
+    const rawQty = Number(quantity);
+    if (isNaN(rawQty) || rawQty <= 0) return;
 
     const isReformReturn = !!selectedReform;
     const targetCabinetId = destCabinetId || selectedTool.cabinetId;
@@ -143,9 +155,11 @@ export default function EntryPage() {
     const targetPosition = destPosition || selectedTool.position;
 
     if (isReformReturn) {
+      // Clamp quantity to what is actually pending in this reform send - never return more than sent
+      const qty = Math.min(rawQty, selectedReform.remaining);
+      if (qty <= 0) return;
+
       // REFORM RETURN: create a NEW separate tool record with "R" suffix
-      // The original tool stays untouched in its original cabinet with its current quantity
-      // Always a single "R" suffix - strip existing R(s) first then add one R
       const baseCode = selectedTool.code.replace(/R+$/, "");
       const newCode = baseCode + "R";
       const newReformCount = (selectedTool.reformCount || 0) + 1;
@@ -157,20 +171,18 @@ export default function EntryPage() {
       );
 
       if (existingReformedTool) {
-        // Add quantity to existing reformed tool AND subtract from original
+        // Add quantity to existing reformed tool in reform cabinet
+        // Reform comes from machines, NOT from cabinet stock - only adds to reform cabinet
         setTools(prev =>
           prev.map(t => {
             if (t.id === existingReformedTool.id) {
               return { ...t, quantity: t.quantity + qty };
             }
-            if (t.id === selectedTool.id) {
-              return { ...t, quantity: Math.max(0, t.quantity - qty) };
-            }
             return t;
           })
         );
       } else {
-        // Create a brand new tool record for the reformed version AND subtract from original
+        // Create a brand new reformed tool in reform cabinet (original stock unchanged)
         const reformedTool = {
           ...selectedTool,
           id: newToolId,
@@ -180,30 +192,21 @@ export default function EntryPage() {
           drawerId: targetDrawerId,
           position: targetPosition,
           reformCount: newReformCount,
-          // Use reform-specific value if available, otherwise keep original
           unitValue: selectedTool.reformUnitValue || selectedTool.unitValue,
         };
-        setTools(prev => [
-          ...prev.map(t =>
-            t.id === selectedTool.id
-              ? { ...t, quantity: Math.max(0, t.quantity - qty) }
-              : t
-          ),
-          reformedTool,
-        ]);
+        setTools(prev => [...prev, reformedTool]);
       }
 
       const nfRetorno = invoiceNumber || selectedReform.invoiceNumber || "";
-      const returnQty = Math.min(qty, selectedReform.remaining);
 
-      // Register reform_return movement - use ORIGINAL toolId so getPendingReforms can match sends to returns
+      // Register reform_return movement - qty is already clamped so it matches exactly
       setMovements(prev => [
         {
           id: `mov-${Date.now()}-ret`,
           type: "reform_return" as const,
           toolId: selectedTool.id,
           userId: "eng-processo-1",
-          quantity: returnQty,
+          quantity: qty,
           date: new Date().toISOString(),
           notes: `Retorno reforma - ${selectedTool.code} -> ${newCode} | NF retorno: ${nfRetorno || "N/A"} | NF envio: ${selectedReform.invoiceNumber || "N/A"}${selectedReform.supplier ? ` | Fornecedor: ${selectedReform.supplier}` : ""} | Destino: ${getCabinetName(targetCabinetId)}`,
           invoiceNumber: nfRetorno || undefined,
@@ -211,12 +214,17 @@ export default function EntryPage() {
         ...prev,
       ]);
 
-      const originalRemaining = Math.max(0, selectedTool.quantity - qty);
       showSuccess(
-        `Retorno de reforma: +${qty} un. de ${newCode} no ${getCabinetName(targetCabinetId)} | Original ${selectedTool.code} ficou com ${originalRemaining} un.${invoiceNumber ? ` | NF: ${invoiceNumber}` : ""}`
+        `Retorno de reforma: +${qty} un. de ${newCode} no ${getCabinetName(targetCabinetId)}${invoiceNumber ? ` | NF: ${invoiceNumber}` : ""}`
       );
+      addNotification({
+        type: "reform_return",
+        title: "Retorno de Reforma",
+        message: `+${qty} un. de ${newCode} recebidas no ${getCabinetName(targetCabinetId)}${invoiceNumber ? ` | NF: ${invoiceNumber}` : ""}`,
+      });
     } else {
       // NORMAL ENTRY: add quantity to existing tool in its current/target cabinet
+      const qty = rawQty;
       setTools(prev =>
         prev.map(t =>
           t.id === selectedTool.id
@@ -253,6 +261,11 @@ export default function EntryPage() {
       showSuccess(
         `Entrada registrada: +${qty} un. de ${selectedTool.code} no ${getCabinetName(targetCabinetId)}${invoiceNumber ? ` | NF: ${invoiceNumber}` : ""}`
       );
+      addNotification({
+        type: invoiceNumber ? "invoice" : "entry",
+        title: invoiceNumber ? "Entrada com Nota Fiscal" : "Entrada de Ferramenta",
+        message: `+${qty} un. de ${selectedTool.code} (${selectedTool.description}) no ${getCabinetName(targetCabinetId)}${invoiceNumber ? ` | NF: ${invoiceNumber}` : ""}`,
+      });
     }
     setSelectedTool(null);
     setSelectedReformId(null);
@@ -295,6 +308,11 @@ export default function EntryPage() {
       ]);
 
       showSuccess(`+${qty} un. adicionadas a ${newSelectedTool.code} (${newSelectedTool.description}). Novo estoque: ${newSelectedTool.quantity + qty}`);
+      addNotification({
+        type: "entry",
+        title: "Estoque Atualizado",
+        message: `+${qty} un. de ${newSelectedTool.code} (${newSelectedTool.description}). Novo estoque: ${newSelectedTool.quantity + qty}`,
+      });
     } else {
       // Creating brand new tool
       if (!newCode || !newDescription || !newTypeId || !newCabinetId || !newDrawerId) return;
@@ -335,6 +353,11 @@ export default function EntryPage() {
       }
 
       showSuccess(`Ferramenta ${newCode} cadastrada com ${qty} un. no ${getCabinetName(newCabinetId)}`);
+      addNotification({
+        type: "add",
+        title: "Nova Ferramenta Cadastrada",
+        message: `${newCode} - ${newDescription} (Qtd: ${qty}) cadastrada no ${getCabinetName(newCabinetId)}`,
+      });
     }
 
     setNewSelectedTool(null);
@@ -555,12 +578,24 @@ export default function EntryPage() {
                     } else {
                       setSelectedReformId(reform.id);
                       setInvoiceNumber(reform.invoiceNumber || "");
-                      // Auto-select first reform cabinet (A-R)
-                      const firstReformCabinet = reformCabinets[0];
-                      if (firstReformCabinet) {
-                        setDestCabinetId(firstReformCabinet.id);
-                        setDestDrawerId("");
-                        setDestPosition("");
+                      // Check if reformed tool already exists in a specific drawer
+                      const baseCode = selectedTool?.code.replace(/R$/, "") || "";
+                      const existingReformed = tools.find(t =>
+                        t.code === baseCode + "R" && reformCabinets.some(c => c.id === t.cabinetId)
+                      );
+                      if (existingReformed) {
+                        // Lock to exact cabinet/drawer/position of existing reformed tool
+                        setDestCabinetId(existingReformed.cabinetId);
+                        setDestDrawerId(existingReformed.drawerId);
+                        setDestPosition(existingReformed.position);
+                      } else {
+                        // No existing reformed tool - select first reform cabinet
+                        const firstReformCabinet = reformCabinets[0];
+                        if (firstReformCabinet) {
+                          setDestCabinetId(firstReformCabinet.id);
+                          setDestDrawerId("");
+                          setDestPosition("");
+                        }
                       }
                     }
                                     }}
@@ -616,9 +651,21 @@ export default function EntryPage() {
                           <span className="text-muted-foreground">{"-->"}</span>
                           <ToolCodeDisplay code={selectedTool.code.replace(/R$/, "") + "R"} className="text-sm font-bold" />
                         </div>
-                        <p className="text-[11px] text-muted-foreground mt-1.5">
-                          O codigo da ferramenta recebera o sufixo "R" e sera movida para o armario de ferramentas reformadas.
-                        </p>
+                        {isReformDestLocked && existingReformedToolForSelected && (
+                          <div className="mt-2 p-2 rounded bg-sky-500/5 border border-sky-500/10">
+                            <p className="text-[11px] text-sky-400 font-medium">
+                              Destino: {getCabinetName(existingReformedToolForSelected.cabinetId)} - Gaveta {drawers.find(d => d.id === existingReformedToolForSelected.drawerId)?.number || "?"} - Pos. {existingReformedToolForSelected.position || "?"}
+                            </p>
+                            <p className="text-[10px] text-muted-foreground mt-0.5">
+                              Estoque atual: {existingReformedToolForSelected.quantity} un.
+                            </p>
+                          </div>
+                        )}
+                        {!isReformDestLocked && (
+                          <p className="text-[11px] text-muted-foreground mt-1.5">
+                            Primeira reforma: selecione gaveta e posicao no armario de reforma abaixo.
+                          </p>
+                        )}
                       </div>
                     )}
 
@@ -651,88 +698,133 @@ export default function EntryPage() {
                     <div className="grid gap-2">
                       <Label htmlFor="qty">Quantidade *</Label>
                       <Input
-                        id="qty"
-                        type="number"
-                        min="1"
-                        placeholder="Quantidade de entrada"
-                        value={quantity}
-                        onChange={(e) => setQuantity(e.target.value)}
-                        required
-                        disabled={!selectedTool}
-                      />
-                    </div>
+  id="qty"
+  type="number"
+  min="1"
+  max={selectedReform ? selectedReform.remaining : undefined}
+  placeholder={selectedReform ? `Max: ${selectedReform.remaining}` : "Quantidade de entrada"}
+  value={quantity}
+  onChange={(e) => setQuantity(e.target.value)}
+  required
+  disabled={!selectedTool}
+  />
+  {selectedReform && (
+    <p className="text-xs text-sky-400 mt-1">
+      Maximo: {selectedReform.remaining} un. pendentes neste envio
+    </p>
+  )}
+  </div>
 
-                    <div className="grid gap-2">
-                      <Label className="flex items-center gap-2">
-                        Armario de Destino *
-                        {selectedReform && (
-                          <Badge className="bg-sky-500/20 text-sky-400 border-sky-500/30 text-[10px]">
-                            Somente armarios de reforma
-                          </Badge>
-                        )}
-                      </Label>
-                      <Select
-                        value={destCabinetId}
-                        onValueChange={(v) => {
-                          setDestCabinetId(v);
-                          setDestDrawerId("");
-                          setDestPosition("");
-                        }}
-                        disabled={!selectedTool}
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Selecione o armario" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {(selectedReform ? reformCabinets : normalCabinets).map((c) => (
-                            <SelectItem key={c.id} value={c.id}>
-                              {c.name} - {c.location}
-                              {c.isReformOnly ? " (Reformadas)" : ""}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      {selectedReform && (
-                        <p className="text-xs text-sky-400">
-                          Ferramentas retornando de reforma devem ser armazenadas nos armarios A-R ou B-R.
-                        </p>
-                      )}
-                    </div>
+                    {(() => {
+                      // Determine if destination is locked:
+                      // 1. Reform return with existing reformed tool -> locked to reformed tool location
+                      // 2. Normal entry for tool that already has a cabinet/drawer/position -> locked to tool location
+                      const toolHasHome = selectedTool && selectedTool.cabinetId && selectedTool.drawerId;
+                      const isLocked = isReformDestLocked || (!selectedReform && toolHasHome);
+                      const lockedDrawer = drawers.find(d => d.id === destDrawerId);
 
-                    {destCabinetId && destDrawersForCabinet.length > 0 && (
-                      <div className="grid grid-cols-2 gap-4">
-                        <div className="grid gap-2">
-                          <Label>Gaveta</Label>
-                          <Select value={destDrawerId} onValueChange={setDestDrawerId} disabled={!selectedTool}>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Gaveta" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {destDrawersForCabinet.map((d) => (
-                                <SelectItem key={d.id} value={d.id}>Gaveta {d.number}</SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        </div>
-                        <div className="grid gap-2">
-                          <Label>Posicao</Label>
-                          {destDrawerId ? (
-                            <Select value={destPosition} onValueChange={setDestPosition} disabled={!selectedTool}>
+                      if (isLocked && destCabinetId) {
+                        return (
+                          <div className="grid gap-2">
+                            <Label className="flex items-center gap-2">
+                              Destino
+                              <Badge variant="outline" className="text-[10px]">
+                                Fixo
+                              </Badge>
+                            </Label>
+                            <div className="rounded-md border border-border bg-secondary/50 p-3">
+                              <p className="text-sm font-medium">
+                                {getCabinetName(destCabinetId)}
+                                {lockedDrawer ? ` - Gaveta ${lockedDrawer.number}` : ""}
+                                {destPosition ? ` - Pos. ${destPosition}` : ""}
+                              </p>
+                              <p className="text-xs text-muted-foreground mt-1">
+                                {isReformDestLocked
+                                  ? `Ferramenta reformada ${existingReformedToolForSelected?.code} ja cadastrada nesta gaveta.`
+                                  : "A ferramenta ja esta cadastrada neste local."}
+                              </p>
+                            </div>
+                          </div>
+                        );
+                      }
+
+                      // Not locked - show selectors
+                      return (
+                        <>
+                          <div className="grid gap-2">
+                            <Label className="flex items-center gap-2">
+                              Armario de Destino *
+                              {selectedReform && (
+                                <Badge className="bg-sky-500/20 text-sky-400 border-sky-500/30 text-[10px]">
+                                  Somente armarios de reforma
+                                </Badge>
+                              )}
+                            </Label>
+                            <Select
+                              value={destCabinetId}
+                              onValueChange={(v) => {
+                                setDestCabinetId(v);
+                                setDestDrawerId("");
+                                setDestPosition("");
+                              }}
+                              disabled={!selectedTool}
+                            >
                               <SelectTrigger>
-                                <SelectValue placeholder="Posicao" />
+                                <SelectValue placeholder="Selecione o armario" />
                               </SelectTrigger>
                               <SelectContent>
-                                {drawers.find(d => d.id === destDrawerId)?.positions.map((p) => (
-                                  <SelectItem key={p} value={p}>Posicao {p}</SelectItem>
+                                {(selectedReform ? reformCabinets : normalCabinets).map((c) => (
+                                  <SelectItem key={c.id} value={c.id}>
+                                    {c.name} - {c.location}
+                                    {c.isReformOnly ? " (Reformadas)" : ""}
+                                  </SelectItem>
                                 ))}
                               </SelectContent>
                             </Select>
+                            {selectedReform && (
+                              <p className="text-xs text-sky-400">
+                                Primeira reforma: selecione o armario e gaveta de destino.
+                              </p>
+                            )}
+                          </div>
+
+                          {destCabinetId && destDrawersForCabinet.length > 0 && (
+                            <div className="grid grid-cols-2 gap-4">
+                              <div className="grid gap-2">
+                                <Label>Gaveta</Label>
+                                <Select value={destDrawerId} onValueChange={setDestDrawerId} disabled={!selectedTool}>
+                                  <SelectTrigger>
+                                    <SelectValue placeholder="Gaveta" />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    {destDrawersForCabinet.map((d) => (
+                                      <SelectItem key={d.id} value={d.id}>Gaveta {d.number}</SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
+                              </div>
+                              <div className="grid gap-2">
+                                <Label>Posicao</Label>
+                                {destDrawerId ? (
+                                  <Select value={destPosition} onValueChange={setDestPosition} disabled={!selectedTool}>
+                                    <SelectTrigger>
+                                      <SelectValue placeholder="Posicao" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                      {drawers.find(d => d.id === destDrawerId)?.positions.map((p) => (
+                                        <SelectItem key={p} value={p}>Posicao {p}</SelectItem>
+                                      ))}
+                                    </SelectContent>
+                                  </Select>
                           ) : (
                             <Input placeholder="Selecione a gaveta" disabled />
                           )}
-                        </div>
-                      </div>
-                    )}
+                              </div>
+                            </div>
+                          )}
+                        </>
+                      );
+                    })()}
 
                     <div className="grid gap-2">
                       <Label htmlFor="entryNotes">Observacoes</Label>
@@ -748,7 +840,8 @@ export default function EntryPage() {
                     <Button
                       type="submit"
                       className={`w-full ${selectedReform ? "bg-sky-600 hover:bg-sky-700 text-white" : ""}`}
-                      disabled={!selectedTool || !quantity || !destCabinetId}
+                      disabled={!selectedTool || !quantity || !destCabinetId || (!isReformDestLocked && selectedReform && (!destDrawerId))}
+
                     >
                       {selectedReform ? (
                         <>

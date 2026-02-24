@@ -16,6 +16,14 @@ import {
   Check,
   CheckCheck,
   X,
+  ArrowDownRight,
+  ArrowUpRight,
+  Wrench,
+  RotateCcw,
+  FileText,
+  Truck,
+  Users,
+  Tag,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -45,6 +53,21 @@ function getIcon(type: Notification["type"]) {
       return <Archive className={`${iconClass} text-primary`} />;
     case "drawer":
       return <Layers className={`${iconClass} text-primary`} />;
+    case "entry":
+    case "invoice":
+      return <ArrowDownRight className={`${iconClass} text-success`} />;
+    case "exit":
+      return <ArrowUpRight className={`${iconClass} text-destructive`} />;
+    case "reform_send":
+      return <Wrench className={`${iconClass} text-warning`} />;
+    case "reform_return":
+      return <RotateCcw className={`${iconClass} text-sky-400`} />;
+    case "supplier":
+      return <Truck className={`${iconClass} text-chart-5`} />;
+    case "user":
+      return <Users className={`${iconClass} text-chart-2`} />;
+    case "tool_type":
+      return <Tag className={`${iconClass} text-chart-4`} />;
     case "info":
       return <Info className={`${iconClass} text-chart-2`} />;
   }
