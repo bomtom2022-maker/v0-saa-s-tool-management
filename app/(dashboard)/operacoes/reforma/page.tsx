@@ -29,11 +29,13 @@ import {
 } from "lucide-react";
 import { type Tool } from "@/lib/mock-data";
 import { useDataStore } from "@/lib/data-store";
+import { useNotifications } from "@/lib/notifications";
 import { PriceTag } from "@/components/dashboard/price-tag";
 import { ToolCodeDisplay } from "@/components/dashboard/tool-code-display";
 
 export default function ReformaPage() {
   const { tools, cabinets, drawers, toolTypes, movements, setMovements, suppliers } = useDataStore();
+  const { addNotification } = useNotifications();
   const [selectedTool, setSelectedTool] = useState<Tool | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [quantity, setQuantity] = useState("");
@@ -128,6 +130,11 @@ export default function ReformaPage() {
     setSuccessMsg(
       `Reforma registrada em ${formatDateTime(timestamp)}: ${qty} un. de ${selectedTool.code} enviada(s) para reforma${supplierName ? ` | Fornecedor: ${supplierName}` : ""}${notaNumber ? ` | Nota: ${notaNumber}` : ""} | Estoque no armario: ${selectedTool.quantity} (sem alteracao)`
     );
+    addNotification({
+      type: "reform_send",
+      title: "Envio para Reforma",
+      message: `${qty} un. de ${selectedTool.code} (${selectedTool.description}) enviadas para reforma${supplierName ? ` | ${supplierName}` : ""}${notaNumber ? ` | NF: ${notaNumber}` : ""}`,
+    });
     setSuccess(true);
     setTimeout(() => setSuccess(false), 5000);
     setSelectedTool(null);

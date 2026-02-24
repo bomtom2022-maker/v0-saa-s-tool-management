@@ -53,11 +53,13 @@ import {
   ToggleLeft,
   List,
 } from "lucide-react";
-import { type ToolType, type CustomField } from "@/lib/mock-data";
-import { useDataStore } from "@/lib/data-store";
-
-export default function ToolTypesPage() {
+  import { type ToolType, type CustomField } from "@/lib/mock-data";
+  import { useDataStore } from "@/lib/data-store";
+  import { useNotifications } from "@/lib/notifications";
+  
+  export default function ToolTypesPage() {
   const { toolTypes, setToolTypes } = useDataStore();
+  const { addNotification } = useNotifications();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingType, setEditingType] = useState<ToolType | null>(null);
   const [selectedType, setSelectedType] = useState<ToolType | null>(null);
@@ -74,17 +76,21 @@ export default function ToolTypesPage() {
       isActive: true,
     };
 
-    if (editingType) {
-      setToolTypes(toolTypes.map((t) => (t.id === editingType.id ? newType : t)));
-    } else {
-      setToolTypes([...toolTypes, newType]);
-    }
-    setIsDialogOpen(false);
-    setEditingType(null);
+  if (editingType) {
+    setToolTypes(toolTypes.map((t) => (t.id === editingType.id ? newType : t)));
+    addNotification({ type: "edit", title: "Tipo Editado", message: `Tipo "${newType.name}" foi atualizado.` });
+  } else {
+    setToolTypes([...toolTypes, newType]);
+    addNotification({ type: "tool_type", title: "Novo Tipo", message: `Tipo de ferramenta "${newType.name}" cadastrado.` });
+  }
+  setIsDialogOpen(false);
+  setEditingType(null);
   };
-
+  
   const handleDelete = (id: string) => {
+    const tt = toolTypes.find(t => t.id === id);
     setToolTypes(toolTypes.filter((t) => t.id !== id));
+    if (tt) addNotification({ type: "delete", title: "Tipo Removido", message: `Tipo "${tt.name}" foi removido.` });
   };
 
   const handleEdit = (type: ToolType) => {

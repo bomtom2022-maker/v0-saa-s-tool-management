@@ -4,7 +4,7 @@ import React, { createContext, useContext, useState, useCallback, useMemo, useRe
 
 export interface Notification {
   id: string;
-  type: "add" | "edit" | "delete" | "move" | "reform_overdue" | "low_stock" | "cabinet" | "drawer" | "info";
+  type: "add" | "edit" | "delete" | "move" | "reform_overdue" | "low_stock" | "cabinet" | "drawer" | "info" | "entry" | "exit" | "reform_send" | "reform_return" | "invoice" | "supplier" | "user" | "tool_type";
   title: string;
   message: string;
   timestamp: Date;
@@ -124,13 +124,27 @@ export function getNotificationIcon(type: Notification["type"]) {
     case "move":
       return "move";
     case "reform_overdue":
-      return "alert";
     case "low_stock":
       return "alert";
     case "cabinet":
       return "cabinet";
     case "drawer":
       return "drawer";
+    case "entry":
+    case "invoice":
+      return "entry";
+    case "exit":
+      return "exit";
+    case "reform_send":
+      return "reform_send";
+    case "reform_return":
+      return "reform_return";
+    case "supplier":
+      return "supplier";
+    case "user":
+      return "user";
+    case "tool_type":
+      return "tool_type";
     case "info":
       return "info";
   }

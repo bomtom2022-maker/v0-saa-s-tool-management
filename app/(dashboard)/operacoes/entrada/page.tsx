@@ -35,11 +35,13 @@ import {
 } from "lucide-react";
 import { type Tool } from "@/lib/mock-data";
 import { useDataStore } from "@/lib/data-store";
+import { useNotifications } from "@/lib/notifications";
 import { PriceTag } from "@/components/dashboard/price-tag";
 import { ToolCodeDisplay } from "@/components/dashboard/tool-code-display";
 
 export default function EntryPage() {
   const { tools, setTools, cabinets, drawers, toolTypes, movements, setMovements } = useDataStore();
+  const { addNotification } = useNotifications();
   const [tab, setTab] = useState("existing");
 
   // Existing tool state
@@ -215,6 +217,11 @@ export default function EntryPage() {
       showSuccess(
         `Retorno de reforma: +${qty} un. de ${newCode} no ${getCabinetName(targetCabinetId)}${invoiceNumber ? ` | NF: ${invoiceNumber}` : ""}`
       );
+      addNotification({
+        type: "reform_return",
+        title: "Retorno de Reforma",
+        message: `+${qty} un. de ${newCode} recebidas no ${getCabinetName(targetCabinetId)}${invoiceNumber ? ` | NF: ${invoiceNumber}` : ""}`,
+      });
     } else {
       // NORMAL ENTRY: add quantity to existing tool in its current/target cabinet
       const qty = rawQty;
@@ -254,6 +261,11 @@ export default function EntryPage() {
       showSuccess(
         `Entrada registrada: +${qty} un. de ${selectedTool.code} no ${getCabinetName(targetCabinetId)}${invoiceNumber ? ` | NF: ${invoiceNumber}` : ""}`
       );
+      addNotification({
+        type: invoiceNumber ? "invoice" : "entry",
+        title: invoiceNumber ? "Entrada com Nota Fiscal" : "Entrada de Ferramenta",
+        message: `+${qty} un. de ${selectedTool.code} (${selectedTool.description}) no ${getCabinetName(targetCabinetId)}${invoiceNumber ? ` | NF: ${invoiceNumber}` : ""}`,
+      });
     }
     setSelectedTool(null);
     setSelectedReformId(null);
@@ -296,6 +308,11 @@ export default function EntryPage() {
       ]);
 
       showSuccess(`+${qty} un. adicionadas a ${newSelectedTool.code} (${newSelectedTool.description}). Novo estoque: ${newSelectedTool.quantity + qty}`);
+      addNotification({
+        type: "entry",
+        title: "Estoque Atualizado",
+        message: `+${qty} un. de ${newSelectedTool.code} (${newSelectedTool.description}). Novo estoque: ${newSelectedTool.quantity + qty}`,
+      });
     } else {
       // Creating brand new tool
       if (!newCode || !newDescription || !newTypeId || !newCabinetId || !newDrawerId) return;
@@ -336,6 +353,11 @@ export default function EntryPage() {
       }
 
       showSuccess(`Ferramenta ${newCode} cadastrada com ${qty} un. no ${getCabinetName(newCabinetId)}`);
+      addNotification({
+        type: "add",
+        title: "Nova Ferramenta Cadastrada",
+        message: `${newCode} - ${newDescription} (Qtd: ${qty}) cadastrada no ${getCabinetName(newCabinetId)}`,
+      });
     }
 
     setNewSelectedTool(null);
