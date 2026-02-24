@@ -45,6 +45,7 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
+import Link from "next/link";
 import {
   Package,
   Plus,
@@ -60,6 +61,7 @@ import {
   ArrowDownToLine,
   ArrowUpFromLine,
   Minus,
+  ExternalLink,
 } from "lucide-react";
 import { type Tool } from "@/lib/mock-data";
 import { useDataStore } from "@/lib/data-store";
@@ -87,9 +89,27 @@ export default function CatalogPage() {
   const [formDrawerId, setFormDrawerId] = useState("");
   const [formPosition, setFormPosition] = useState("");
 
-  // Derived: drawers for selected cabinet, positions for selected drawer
+  // Derived: drawers for selected cabinet
   const cabinetDrawers = drawers.filter((d) => d.cabinetId === formCabinetId);
-  const drawerPositions = drawers.find((d) => d.id === formDrawerId)?.positions || [];
+
+  // Positions: only show empty ones (not occupied by another tool)
+  const selectedDrawer = drawers.find((d) => d.id === formDrawerId);
+  const allDrawerPositions = selectedDrawer?.positions || [];
+  const occupiedPositions = tools
+    .filter((t) => t.drawerId === formDrawerId && (editingTool ? t.id !== editingTool.id : true))
+    .map((t) => t.position);
+  const availablePositions = allDrawerPositions.filter((pos) => !occupiedPositions.includes(pos));
+
+  // Check if ANY position is available across the selected cabinet
+  const hasAnyAvailablePosition = cabinetDrawers.some((d) => {
+    const occupied = tools
+      .filter((t) => t.drawerId === d.id && (editingTool ? t.id !== editingTool.id : true))
+      .map((t) => t.position);
+    return d.positions.some((pos) => !occupied.includes(pos));
+  });
+
+  // Check if the selected drawer has available positions
+  const selectedDrawerHasPositions = formDrawerId ? availablePositions.length > 0 : true;
 
   // Reset cascading on dialog open
   useEffect(() => {
@@ -429,22 +449,28 @@ export default function CatalogPage() {
                                   <SelectValue placeholder={formCabinetId ? "Selecione..." : "Selecione armario"} />
                                 </SelectTrigger>
                                 <SelectContent>
-                                  {cabinetDrawers.map((d) => (
-                                    <SelectItem key={d.id} value={d.id}>
-                                      Gaveta {d.number}
-                                    </SelectItem>
-                                  ))}
+                                  {cabinetDrawers.map((d) => {
+                                    const occ = tools
+                                      .filter((t) => t.drawerId === d.id && (editingTool ? t.id !== editingTool.id : true))
+                                      .map((t) => t.position);
+                                    const free = d.positions.filter((p) => !occ.includes(p)).length;
+                                    return (
+                                      <SelectItem key={d.id} value={d.id} disabled={free === 0}>
+                                        {"Gaveta "}{d.number}{" "}<span className={`text-xs ${free === 0 ? "text-destructive" : "text-muted-foreground"}`}>({free === 0 ? "cheia" : `${free} livre(s)`})</span>
+                                      </SelectItem>
+                                    );
+                                  })}
                                 </SelectContent>
                               </Select>
                             </div>
                             <div className="grid gap-2">
                               <Label>Posicao *</Label>
-                              <Select value={formPosition} onValueChange={setFormPosition} disabled={!formDrawerId}>
+                              <Select value={formPosition} onValueChange={setFormPosition} disabled={!formDrawerId || availablePositions.length === 0}>
                                 <SelectTrigger>
-                                  <SelectValue placeholder={formDrawerId ? "Selecione..." : "Selecione gaveta"} />
+                                  <SelectValue placeholder={!formDrawerId ? "Selecione gaveta" : availablePositions.length === 0 ? "Gaveta cheia" : "Selecione..."} />
                                 </SelectTrigger>
                                 <SelectContent>
-                                  {drawerPositions.map((pos) => (
+                                  {availablePositions.map((pos) => (
                                     <SelectItem key={pos} value={pos}>
                                       Posicao {pos}
                                     </SelectItem>
@@ -453,6 +479,36 @@ export default function CatalogPage() {
                               </Select>
                             </div>
                           </div>
+
+                          {/* Alert: no available positions in cabinet */}
+                          {formCabinetId && !hasAnyAvailablePosition && (
+                            <div className="flex items-start gap-3 p-3 rounded-lg bg-warning/10 border border-warning/30">
+                              <AlertTriangle className="h-5 w-5 text-warning shrink-0 mt-0.5" />
+                              <div className="space-y-1">
+                                <p className="text-sm font-medium text-warning">Nenhuma posicao disponivel neste armario</p>
+                                <p className="text-xs text-muted-foreground">
+                                  Todas as posicoes de todas as gavetas deste armario estao ocupadas. Crie novas gavetas ou posicoes na configuracao.
+                                </p>
+                                <Link
+                                  href="/configuracao/armarios"
+                                  className="inline-flex items-center gap-1.5 text-xs text-primary hover:underline mt-1"
+                                >
+                                  <ExternalLink className="h-3 w-3" />
+                                  Ir para Configuracao de Armarios
+                                </Link>
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Alert: selected drawer is full */}
+                          {formDrawerId && !selectedDrawerHasPositions && hasAnyAvailablePosition && (
+                            <div className="flex items-center gap-2 p-2 rounded-lg bg-destructive/10 border border-destructive/30">
+                              <AlertTriangle className="h-4 w-4 text-destructive shrink-0" />
+                              <p className="text-xs text-destructive">
+                                Esta gaveta esta cheia. Selecione outra gaveta com posicoes disponiveis.
+                              </p>
+                            </div>
+                          )}
                         </div>
 
                         <div className="grid grid-cols-2 gap-4">
@@ -522,7 +578,7 @@ export default function CatalogPage() {
                         <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)}>
                           Cancelar
                         </Button>
-                        <Button type="submit" disabled={!formCabinetId || !formDrawerId || !formPosition}>
+                        <Button type="submit" disabled={!formCabinetId || !formDrawerId || !formPosition || (!selectedDrawerHasPositions && !editingTool)}>
                           {editingTool ? "Salvar" : "Cadastrar"}
                         </Button>
                       </DialogFooter>
