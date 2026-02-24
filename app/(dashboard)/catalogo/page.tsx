@@ -1,8 +1,6 @@
 "use client";
 
-import React from "react"
-
-import { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Header } from "@/components/dashboard/header";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -46,7 +44,6 @@ import {
   SheetDescription,
   SheetHeader,
   SheetTitle,
-  SheetTrigger,
 } from "@/components/ui/sheet";
 import {
   Package,
@@ -56,20 +53,23 @@ import {
   Trash2,
   Eye,
   Search,
-  Filter,
   Download,
   Upload,
   AlertTriangle,
   Archive,
-  MapPin,
+  ArrowDownToLine,
+  ArrowUpFromLine,
+  Minus,
 } from "lucide-react";
 import { type Tool } from "@/lib/mock-data";
 import { useDataStore } from "@/lib/data-store";
+import { useNotifications } from "@/lib/notifications";
 import { PriceTag } from "@/components/dashboard/price-tag";
 import { ToolCodeDisplay } from "@/components/dashboard/tool-code-display";
 
 export default function CatalogPage() {
-  const { tools, setTools, toolTypes, statuses, cabinets } = useDataStore();
+  const { tools, setTools, toolTypes, statuses, cabinets, drawers, movements, setMovements } = useDataStore();
+  const { addNotification } = useNotifications();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingTool, setEditingTool] = useState<Tool | null>(null);
   const [selectedTool, setSelectedTool] = useState<Tool | null>(null);
@@ -77,26 +77,69 @@ export default function CatalogPage() {
   const [filterType, setFilterType] = useState<string>("all");
   const [filterStatus, setFilterStatus] = useState<string>("all");
 
+  // Quick quantity dialog state
+  const [qtyDialogTool, setQtyDialogTool] = useState<Tool | null>(null);
+  const [qtyMode, setQtyMode] = useState<"entry" | "exit" | null>(null);
+  const [qtyValue, setQtyValue] = useState(1);
+
+  // Cascading selectors state for add/edit form
+  const [formCabinetId, setFormCabinetId] = useState("");
+  const [formDrawerId, setFormDrawerId] = useState("");
+  const [formPosition, setFormPosition] = useState("");
+
+  // Derived: drawers for selected cabinet, positions for selected drawer
+  const cabinetDrawers = drawers.filter((d) => d.cabinetId === formCabinetId);
+  const drawerPositions = drawers.find((d) => d.id === formDrawerId)?.positions || [];
+
+  // Reset cascading on dialog open
+  useEffect(() => {
+    if (isDialogOpen) {
+      if (editingTool) {
+        setFormCabinetId(editingTool.cabinetId);
+        setFormDrawerId(editingTool.drawerId);
+        setFormPosition(editingTool.position);
+      } else {
+        setFormCabinetId("");
+        setFormDrawerId("");
+        setFormPosition("");
+      }
+    }
+  }, [isDialogOpen, editingTool]);
+
+  // When cabinet changes, reset drawer and position
+  const handleCabinetChange = (val: string) => {
+    setFormCabinetId(val);
+    setFormDrawerId("");
+    setFormPosition("");
+  };
+
+  // When drawer changes, reset position
+  const handleDrawerChange = (val: string) => {
+    setFormDrawerId(val);
+    setFormPosition("");
+  };
+
   const handleSave = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const formData = new FormData(e.currentTarget);
-    const cabinetId = formData.get("cabinetId") as string;
-    const selectedCab = cabinets.find(c => c.id === cabinetId);
+    const selectedCab = cabinets.find((c) => c.id === formCabinetId);
     let rawCode = formData.get("code") as string;
-    // Auto-append "R" suffix if saving into a reform-only cabinet
     if (selectedCab?.isReformOnly && !rawCode.endsWith("R")) {
       rawCode = rawCode + "R";
     }
+
+    const selectedDrawer = drawers.find((d) => d.id === formDrawerId);
+
     const newTool: Tool = {
       id: editingTool?.id || String(Date.now()),
       code: rawCode,
       description: formData.get("description") as string,
       typeId: formData.get("typeId") as string,
       supplier: formData.get("supplier") as string,
-      statusId: "1",
-      cabinetId: cabinetId,
-      drawerId: "1",
-      position: formData.get("position") as string,
+      statusId: editingTool?.statusId || "1",
+      cabinetId: formCabinetId,
+      drawerId: formDrawerId,
+      position: formPosition,
       quantity: Number(formData.get("quantity")) || 0,
       minStock: Number(formData.get("minStock")) || 0,
       unitValue: formData.get("unitValue") ? Number(formData.get("unitValue")) : undefined,
@@ -105,21 +148,60 @@ export default function CatalogPage() {
     };
 
     if (editingTool) {
-      setTools(tools.map((t) => (t.id === editingTool.id ? { ...newTool, statusId: t.statusId } : t)));
+      setTools(tools.map((t) => (t.id === editingTool.id ? newTool : t)));
+      addNotification({ type: "edit", title: "Ferramenta editada", message: `${newTool.code} - ${newTool.description} foi atualizada.` });
     } else {
       setTools([...tools, newTool]);
+      addNotification({ type: "add", title: "Ferramenta cadastrada", message: `${newTool.code} - ${newTool.description} adicionada ao catalogo.` });
     }
     setIsDialogOpen(false);
     setEditingTool(null);
   };
 
   const handleDelete = (id: string) => {
+    const tool = tools.find((t) => t.id === id);
     setTools(tools.filter((t) => t.id !== id));
+    if (tool) {
+      addNotification({ type: "delete", title: "Ferramenta excluida", message: `${tool.code} - ${tool.description} removida do catalogo.` });
+    }
   };
 
   const handleEdit = (tool: Tool) => {
     setEditingTool(tool);
     setIsDialogOpen(true);
+  };
+
+  // Quick quantity adjustment
+  const handleQtyConfirm = () => {
+    if (!qtyDialogTool || !qtyMode || qtyValue <= 0) return;
+
+    const delta = qtyMode === "entry" ? qtyValue : -qtyValue;
+    const newQty = Math.max(0, qtyDialogTool.quantity + delta);
+
+    setTools(tools.map((t) => (t.id === qtyDialogTool.id ? { ...t, quantity: newQty } : t)));
+
+    // Register movement
+    const timestamp = new Date().toISOString();
+    const newMovement = {
+      id: `mov-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+      type: qtyMode as "entry" | "exit",
+      toolId: qtyDialogTool.id,
+      userId: "eng-processo-1",
+      quantity: qtyValue,
+      date: timestamp,
+      notes: qtyMode === "entry" ? "Entrada rapida via catalogo" : "Saida rapida via catalogo",
+    };
+    setMovements([...movements, newMovement]);
+
+    addNotification({
+      type: qtyMode === "entry" ? "entry" : "exit",
+      title: qtyMode === "entry" ? "Entrada registrada" : "Saida registrada",
+      message: `${qtyValue} un. de ${qtyDialogTool.code} | Estoque: ${qtyDialogTool.quantity} -> ${newQty}`,
+    });
+
+    setQtyDialogTool(null);
+    setQtyMode(null);
+    setQtyValue(1);
   };
 
   const getTypeName = (typeId: string) => {
@@ -134,18 +216,17 @@ export default function CatalogPage() {
     return cabinets.find((c) => c.id === cabinetId)?.name || "N/A";
   };
 
+  const getDrawerNumber = (drawerId: string) => {
+    return drawers.find((d) => d.id === drawerId)?.number || "-";
+  };
+
   const getStatusColorClass = (color: string) => {
     switch (color) {
-      case "bg-success":
-        return "bg-success";
-      case "bg-chart-2":
-        return "bg-chart-2";
-      case "bg-warning":
-        return "bg-warning";
-      case "bg-destructive":
-        return "bg-destructive";
-      default:
-        return "bg-muted-foreground";
+      case "bg-success": return "bg-success";
+      case "bg-chart-2": return "bg-chart-2";
+      case "bg-warning": return "bg-warning";
+      case "bg-destructive": return "bg-destructive";
+      default: return "bg-muted-foreground";
     }
   };
 
@@ -179,8 +260,7 @@ export default function CatalogPage() {
                 Cadastro Mestre de Ferramentas
               </p>
               <p className="text-xs text-muted-foreground">
-                Cadastre ferramentas com codigo interno, tipo, fornecedor e campos personalizados.
-                Todos os dados sao exemplos para demonstracao.
+                Clique no nome da ferramenta para ajuste rapido de quantidade (entrada ou saida).
               </p>
             </div>
           </CardContent>
@@ -238,14 +318,14 @@ export default function CatalogPage() {
                   <Download className="mr-2 h-4 w-4" />
                   Exportar
                 </Button>
-                <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+                <Dialog open={isDialogOpen} onOpenChange={(open) => { setIsDialogOpen(open); if (!open) setEditingTool(null); }}>
                   <DialogTrigger asChild>
                     <Button onClick={() => setEditingTool(null)}>
                       <Plus className="mr-2 h-4 w-4" />
                       Nova Ferramenta
                     </Button>
                   </DialogTrigger>
-                  <DialogContent className="max-w-2xl">
+                  <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
                     <form onSubmit={handleSave}>
                       <DialogHeader>
                         <DialogTitle>
@@ -304,31 +384,78 @@ export default function CatalogPage() {
                             />
                           </div>
                           <div className="grid gap-2">
-                            <Label htmlFor="cabinetId">Armario</Label>
-                            <Select name="cabinetId" defaultValue={editingTool?.cabinetId || "1"}>
+                            <Label>Status</Label>
+                            <Select name="statusId" defaultValue={editingTool?.statusId || "1"}>
                               <SelectTrigger>
                                 <SelectValue />
                               </SelectTrigger>
                               <SelectContent>
-                                {cabinets.map((cabinet) => (
-                                  <SelectItem key={cabinet.id} value={cabinet.id}>
-                                    {cabinet.name}
+                                {statuses.filter((s) => s.isActive).map((status) => (
+                                  <SelectItem key={status.id} value={status.id}>
+                                    {status.name}
                                   </SelectItem>
                                 ))}
                               </SelectContent>
                             </Select>
                           </div>
                         </div>
-                        <div className="grid grid-cols-3 gap-4">
-                          <div className="grid gap-2">
-                            <Label htmlFor="position">Posicao</Label>
-                            <Input
-                              id="position"
-                              name="position"
-                              placeholder="Ex: A, B, 1, 2"
-                              defaultValue={editingTool?.position}
-                            />
+
+                        {/* Cascading: Armario -> Gaveta -> Posicao */}
+                        <div className="p-4 rounded-lg border border-border bg-secondary/30 space-y-4">
+                          <p className="text-sm font-medium flex items-center gap-2">
+                            <Archive className="h-4 w-4 text-muted-foreground" />
+                            Localizacao no Armario
+                          </p>
+                          <div className="grid grid-cols-3 gap-4">
+                            <div className="grid gap-2">
+                              <Label>Armario *</Label>
+                              <Select value={formCabinetId} onValueChange={handleCabinetChange}>
+                                <SelectTrigger>
+                                  <SelectValue placeholder="Selecione..." />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {cabinets.map((cabinet) => (
+                                    <SelectItem key={cabinet.id} value={cabinet.id}>
+                                      {cabinet.name}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            </div>
+                            <div className="grid gap-2">
+                              <Label>Gaveta *</Label>
+                              <Select value={formDrawerId} onValueChange={handleDrawerChange} disabled={!formCabinetId}>
+                                <SelectTrigger>
+                                  <SelectValue placeholder={formCabinetId ? "Selecione..." : "Selecione armario"} />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {cabinetDrawers.map((d) => (
+                                    <SelectItem key={d.id} value={d.id}>
+                                      Gaveta {d.number}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            </div>
+                            <div className="grid gap-2">
+                              <Label>Posicao *</Label>
+                              <Select value={formPosition} onValueChange={setFormPosition} disabled={!formDrawerId}>
+                                <SelectTrigger>
+                                  <SelectValue placeholder={formDrawerId ? "Selecione..." : "Selecione gaveta"} />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {drawerPositions.map((pos) => (
+                                    <SelectItem key={pos} value={pos}>
+                                      Posicao {pos}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            </div>
                           </div>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-4">
                           <div className="grid gap-2">
                             <Label htmlFor="quantity">Quantidade Inicial</Label>
                             <Input
@@ -395,7 +522,7 @@ export default function CatalogPage() {
                         <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)}>
                           Cancelar
                         </Button>
-                        <Button type="submit">
+                        <Button type="submit" disabled={!formCabinetId || !formDrawerId || !formPosition}>
                           {editingTool ? "Salvar" : "Cadastrar"}
                         </Button>
                       </DialogFooter>
@@ -427,7 +554,7 @@ export default function CatalogPage() {
                     <TableHead>Codigo</TableHead>
                     <TableHead>Descricao</TableHead>
                     <TableHead>Tipo</TableHead>
-                    <TableHead>Armario</TableHead>
+                    <TableHead>Localizacao</TableHead>
                     <TableHead className="text-center">Qtd.</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead className="w-12"></TableHead>
@@ -451,14 +578,28 @@ export default function CatalogPage() {
                               <PriceTag value={tool.unitValue} reformValue={tool.reformUnitValue} />
                             </div>
                           </TableCell>
-                          <TableCell className="max-w-[200px] truncate">{tool.description}</TableCell>
+                          <TableCell className="max-w-[200px]">
+                            <button
+                              type="button"
+                              className="text-left hover:text-primary hover:underline underline-offset-2 transition-colors cursor-pointer truncate block max-w-full"
+                              onClick={() => { setQtyDialogTool(tool); setQtyMode(null); setQtyValue(1); }}
+                              title="Clique para ajuste rapido de quantidade"
+                            >
+                              {tool.description}
+                            </button>
+                          </TableCell>
                           <TableCell>
                             <Badge variant="secondary">{getTypeName(tool.typeId)}</Badge>
                           </TableCell>
                           <TableCell>
-                            <div className="flex items-center gap-2 text-sm">
-                              <Archive className="h-4 w-4 text-muted-foreground" />
-                              {getCabinetName(tool.cabinetId)}
+                            <div className="flex flex-col gap-0.5 text-sm">
+                              <span className="flex items-center gap-1.5">
+                                <Archive className="h-3.5 w-3.5 text-muted-foreground" />
+                                {getCabinetName(tool.cabinetId)}
+                              </span>
+                              <span className="text-xs text-muted-foreground pl-5">
+                                {"Gaveta "}{getDrawerNumber(tool.drawerId)}{" | Pos. "}{tool.position || "-"}
+                              </span>
                             </div>
                           </TableCell>
                           <TableCell className="text-center">
@@ -513,6 +654,146 @@ export default function CatalogPage() {
           </CardContent>
         </Card>
 
+        {/* Quick Quantity Adjustment Dialog */}
+        <Dialog open={!!qtyDialogTool} onOpenChange={(open) => { if (!open) { setQtyDialogTool(null); setQtyMode(null); } }}>
+          <DialogContent className="max-w-md">
+            {qtyDialogTool && (
+              <>
+                <DialogHeader>
+                  <DialogTitle className="flex items-center gap-2">
+                    <Package className="h-5 w-5 text-primary" />
+                    Ajuste Rapido de Quantidade
+                  </DialogTitle>
+                  <DialogDescription>
+                    <ToolCodeDisplay code={qtyDialogTool.code} className="font-semibold" />
+                    {" - "}{qtyDialogTool.description}
+                  </DialogDescription>
+                </DialogHeader>
+
+                <div className="space-y-4 py-2">
+                  {/* Current info */}
+                  <div className="p-3 rounded-lg bg-secondary/50 space-y-1">
+                    <div className="flex justify-between text-sm">
+                      <span className="text-muted-foreground">Localizacao</span>
+                      <span className="font-medium">{getCabinetName(qtyDialogTool.cabinetId)} | Gaveta {getDrawerNumber(qtyDialogTool.drawerId)} | Pos. {qtyDialogTool.position || "-"}</span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-muted-foreground">Estoque atual</span>
+                      <span className={`font-bold text-base ${isLowStock(qtyDialogTool) ? "text-warning" : ""}`}>{qtyDialogTool.quantity} un.</span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-muted-foreground">Estoque minimo</span>
+                      <span>{qtyDialogTool.minStock} un.</span>
+                    </div>
+                  </div>
+
+                  {/* Mode selection */}
+                  {qtyMode === null ? (
+                    <div className="grid grid-cols-2 gap-3">
+                      <Button
+                        variant="outline"
+                        className="h-20 flex-col gap-2 border-success/30 hover:bg-success/10 hover:border-success/60"
+                        onClick={() => setQtyMode("entry")}
+                      >
+                        <ArrowDownToLine className="h-6 w-6 text-success" />
+                        <span className="text-sm font-medium">Entrada</span>
+                      </Button>
+                      <Button
+                        variant="outline"
+                        className="h-20 flex-col gap-2 border-destructive/30 hover:bg-destructive/10 hover:border-destructive/60"
+                        onClick={() => setQtyMode("exit")}
+                      >
+                        <ArrowUpFromLine className="h-6 w-6 text-destructive" />
+                        <span className="text-sm font-medium">Saida</span>
+                      </Button>
+                    </div>
+                  ) : (
+                    <div className="space-y-4">
+                      {/* Mode indicator */}
+                      <div className={`p-3 rounded-lg flex items-center gap-3 ${qtyMode === "entry" ? "bg-success/10 border border-success/30" : "bg-destructive/10 border border-destructive/30"}`}>
+                        {qtyMode === "entry" ? (
+                          <ArrowDownToLine className="h-5 w-5 text-success" />
+                        ) : (
+                          <ArrowUpFromLine className="h-5 w-5 text-destructive" />
+                        )}
+                        <div>
+                          <p className={`text-sm font-medium ${qtyMode === "entry" ? "text-success" : "text-destructive"}`}>
+                            {qtyMode === "entry" ? "Entrada de ferramentas" : "Saida de ferramentas"}
+                          </p>
+                          <p className="text-xs text-muted-foreground">
+                            {qtyMode === "entry" ? "A quantidade sera adicionada ao estoque" : "A quantidade sera subtraida do estoque"}
+                          </p>
+                        </div>
+                      </div>
+
+                      {/* Quantity input */}
+                      <div className="grid gap-2">
+                        <Label>Quantidade</Label>
+                        <div className="flex items-center gap-2">
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="icon"
+                            className="h-10 w-10"
+                            onClick={() => setQtyValue(Math.max(1, qtyValue - 1))}
+                          >
+                            <Minus className="h-4 w-4" />
+                          </Button>
+                          <Input
+                            type="number"
+                            min={1}
+                            max={qtyMode === "exit" ? qtyDialogTool.quantity : 9999}
+                            value={qtyValue}
+                            onChange={(e) => setQtyValue(Math.max(1, Number(e.target.value)))}
+                            className="text-center text-lg font-bold"
+                          />
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="icon"
+                            className="h-10 w-10"
+                            onClick={() => setQtyValue(qtyValue + 1)}
+                          >
+                            <Plus className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </div>
+
+                      {/* Preview */}
+                      <div className="p-3 rounded-lg bg-secondary/50 text-center">
+                        <p className="text-xs text-muted-foreground mb-1">Estoque apos ajuste</p>
+                        <p className="text-2xl font-bold">
+                          {Math.max(0, qtyDialogTool.quantity + (qtyMode === "entry" ? qtyValue : -qtyValue))} un.
+                        </p>
+                      </div>
+
+                      {/* Warning if exit > stock */}
+                      {qtyMode === "exit" && qtyValue > qtyDialogTool.quantity && (
+                        <div className="flex items-center gap-2 p-2 rounded bg-warning/10 text-warning text-sm">
+                          <AlertTriangle className="h-4 w-4 shrink-0" />
+                          A quantidade de saida e maior que o estoque. O estoque sera zerado.
+                        </div>
+                      )}
+
+                      <div className="flex gap-2">
+                        <Button variant="outline" className="flex-1" onClick={() => setQtyMode(null)}>
+                          Voltar
+                        </Button>
+                        <Button
+                          className={`flex-1 ${qtyMode === "entry" ? "bg-success hover:bg-success/90 text-success-foreground" : "bg-destructive hover:bg-destructive/90 text-destructive-foreground"}`}
+                          onClick={handleQtyConfirm}
+                        >
+                          {qtyMode === "entry" ? "Confirmar Entrada" : "Confirmar Saida"}
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </>
+            )}
+          </DialogContent>
+        </Dialog>
+
         {/* Tool Details Sheet */}
         <Sheet open={!!selectedTool} onOpenChange={(open) => !open && setSelectedTool(null)}>
           <SheetContent className="sm:max-w-lg">
@@ -556,8 +837,8 @@ export default function CatalogPage() {
                       <span className="text-sm font-medium">{getCabinetName(selectedTool.cabinetId)}</span>
                     </div>
                     <div className="flex justify-between items-center py-2 border-b border-border">
-                      <span className="text-sm text-muted-foreground">Posicao</span>
-                      <span className="text-sm font-medium">Gaveta {selectedTool.drawerId}, Pos. {selectedTool.position}</span>
+                      <span className="text-sm text-muted-foreground">Localizacao</span>
+                      <span className="text-sm font-medium">Gaveta {getDrawerNumber(selectedTool.drawerId)}, Pos. {selectedTool.position || "-"}</span>
                     </div>
                     <div className="flex justify-between items-center py-2 border-b border-border">
                       <span className="text-sm text-muted-foreground">Quantidade</span>
@@ -569,6 +850,12 @@ export default function CatalogPage() {
                       <span className="text-sm text-muted-foreground">Estoque Minimo</span>
                       <span className="text-sm font-medium">{selectedTool.minStock} unidades</span>
                     </div>
+                    {(selectedTool.unitValue || selectedTool.reformUnitValue) && (
+                      <div className="flex justify-between items-center py-2 border-b border-border">
+                        <span className="text-sm text-muted-foreground">Valor</span>
+                        <PriceTag value={selectedTool.unitValue} reformValue={selectedTool.reformUnitValue} />
+                      </div>
+                    )}
                   </div>
 
                   {selectedTool.notes && (
