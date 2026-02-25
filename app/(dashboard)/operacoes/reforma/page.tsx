@@ -639,21 +639,19 @@ export default function ReformaPage() {
           <TabsContent value="emreforma" className="space-y-4 md:space-y-6 mt-4">
             {/* KPI Cards */}
             <div className="grid gap-3 grid-cols-2 lg:grid-cols-4">
-              <Link href="/operacoes/enviar-reforma" className="block">
-                <Card className={`border cursor-pointer transition-colors hover:border-sky-500/50 ${reformQueue.length > 0 ? "border-sky-500/30 bg-sky-500/5" : "border-border"}`}>
-                  <CardContent className="p-4">
-                    <div className="flex items-center gap-3">
-                      <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-sky-500/10 shrink-0">
-                        <ShoppingCart className="h-4 w-4 text-sky-500" />
-                      </div>
-                      <div>
-                        <p className="text-2xl font-bold text-sky-500">{reformQueue.length}</p>
-                        <p className="text-xs text-muted-foreground">Na fila p/ envio</p>
-                      </div>
+              <Card className={`border cursor-pointer transition-colors ${reformStatusFilter === "all" ? "border-primary bg-primary/5" : "border-border"}`} onClick={() => setReformStatusFilter("all")}>
+                <CardContent className="p-4">
+                  <div className="flex items-center gap-3">
+                    <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary/10 shrink-0">
+                      <Wrench className="h-4 w-4 text-primary" />
                     </div>
-                  </CardContent>
-                </Card>
-              </Link>
+                    <div>
+                      <p className="text-2xl font-bold">{reformItems.length}</p>
+                      <p className="text-xs text-muted-foreground">Total de envios</p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
               <Card className={`border cursor-pointer transition-colors ${reformStatusFilter === "pending" ? "border-orange-500 bg-orange-500/5" : "border-border"}`} onClick={() => setReformStatusFilter(reformStatusFilter === "pending" ? "all" : "pending")}>
                 <CardContent className="p-4">
                   <div className="flex items-center gap-3">

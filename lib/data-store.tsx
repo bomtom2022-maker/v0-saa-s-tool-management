@@ -47,7 +47,7 @@ interface DataStore {
 
 const DataStoreContext = createContext<DataStore | null>(null);
 
-const STORAGE_KEY = "tms-data-store-v2";
+const STORAGE_KEY = "tms-data-store";
 
 export function DataStoreProvider({ children }: { children: React.ReactNode }) {
   const [cabinets, setCabinets] = useState<Cabinet[]>(mockCabinets);
@@ -69,22 +69,18 @@ export function DataStoreProvider({ children }: { children: React.ReactNode }) {
       const raw = sessionStorage.getItem(STORAGE_KEY);
       if (raw) {
         const data = JSON.parse(raw);
-        if (data && typeof data === "object" && data.cabinets) {
-          setCabinets(data.cabinets);
-          if (data.drawers) setDrawers(data.drawers);
-          if (data.tools) setTools(data.tools);
-          if (data.movements) setMovements(data.movements);
-          if (data.statuses) setStatuses(data.statuses);
-          if (data.toolTypes) setToolTypes(data.toolTypes);
-          if (data.users) setUsers(data.users);
-          if (data.suppliers) setSuppliers(data.suppliers);
-          if (data.reformQueue) setReformQueue(data.reformQueue);
-        } else {
-          sessionStorage.removeItem(STORAGE_KEY);
-        }
+        if (data.cabinets) setCabinets(data.cabinets);
+        if (data.drawers) setDrawers(data.drawers);
+        if (data.tools) setTools(data.tools);
+        if (data.movements) setMovements(data.movements);
+        if (data.statuses) setStatuses(data.statuses);
+        if (data.toolTypes) setToolTypes(data.toolTypes);
+        if (data.users) setUsers(data.users);
+        if (data.suppliers) setSuppliers(data.suppliers);
+        if (data.reformQueue) setReformQueue(data.reformQueue);
       }
     } catch {
-      sessionStorage.removeItem(STORAGE_KEY);
+      // ignore
     }
   }, []);
 

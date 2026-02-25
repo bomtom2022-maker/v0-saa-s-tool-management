@@ -22,6 +22,7 @@ import { ToolCodeDisplay } from "@/components/dashboard/tool-code-display";
 export default function DashboardPage() {
   const { cabinets, tools, movements, statuses } = useDataStore();
 
+
   // Calculate stats dynamically from live tools data
   const totalTools = tools.reduce((acc, t) => acc + t.quantity, 0);
   const totalValue = tools.reduce((acc, t) => acc + (t.unitValue || 0) * t.quantity, 0);
