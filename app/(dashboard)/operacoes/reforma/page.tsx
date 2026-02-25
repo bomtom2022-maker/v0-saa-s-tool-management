@@ -74,6 +74,7 @@ export default function ReformaPage() {
   const [reformStatusFilter, setReformStatusFilter] = useState<"all" | "pending" | "overdue" | "returned">("all");
   const [reformSupplierFilter, setReformSupplierFilter] = useState("all");
   const [selectedReformDetail, setSelectedReformDetail] = useState<any>(null);
+  const [showQueueDialog, setShowQueueDialog] = useState(false);
 
   useEffect(() => {
     setCurrentTime(new Date());
@@ -131,18 +132,35 @@ export default function ReformaPage() {
 
     const supplierName = suppliers.find(s => s.id === selectedSupplierId)?.name || "";
 
-    const newItem = {
-      id: `rq-${Date.now()}`,
-      toolId: selectedTool.id,
-      quantity: qty,
-      supplierId: selectedSupplierId,
-      supplierName,
-      notes: notes || "",
-      addedAt: new Date().toISOString(),
-      addedBy: "eng-processo-1",
-    };
+    // Consolidar: se ja existe item com mesmo toolId + supplierId, somar quantidade
+    const existingIndex = reformQueue.findIndex(
+      q => q.toolId === selectedTool.id && q.supplierId === selectedSupplierId
+    );
 
-    setReformQueue(prev => [newItem, ...prev]);
+    if (existingIndex >= 0) {
+      setReformQueue(prev => prev.map((item, i) =>
+        i === existingIndex
+          ? {
+              ...item,
+              quantity: item.quantity + qty,
+              notes: notes ? (item.notes ? `${item.notes}; ${notes}` : notes) : item.notes,
+              addedAt: new Date().toISOString(),
+            }
+          : item
+      ));
+    } else {
+      const newItem = {
+        id: `rq-${Date.now()}`,
+        toolId: selectedTool.id,
+        quantity: qty,
+        supplierId: selectedSupplierId,
+        supplierName,
+        notes: notes || "",
+        addedAt: new Date().toISOString(),
+        addedBy: "eng-processo-1",
+      };
+      setReformQueue(prev => [newItem, ...prev]);
+    }
 
     setSuccessMsg(
       `${qty} un. de ${selectedTool.code} adicionada(s) a fila de reforma | Fornecedor: ${supplierName}`
@@ -295,7 +313,10 @@ export default function ReformaPage() {
             </CardContent>
           </Card>
 
-          <Card className={`border ${reformQueue.length > 0 ? "border-orange-500/30 bg-orange-500/5" : "border-border bg-card"}`}>
+          <Card
+            className={`border cursor-pointer transition-colors hover:border-orange-500/50 ${reformQueue.length > 0 ? "border-orange-500/30 bg-orange-500/5" : "border-border bg-card"}`}
+            onClick={() => reformQueue.length > 0 && setShowQueueDialog(true)}
+          >
             <CardContent className="flex items-center justify-between gap-4 p-4">
               <div className="flex items-center gap-4">
                 <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-orange-500/20 shrink-0">
@@ -310,14 +331,22 @@ export default function ReformaPage() {
                   </p>
                 </div>
               </div>
-              {reformQueue.length > 0 && (
-                <Link href="/operacoes/enviar-reforma">
-                  <Button size="sm" className="bg-orange-600 hover:bg-orange-700 text-white">
-                    <Send className="mr-2 h-4 w-4" />
-                    Enviar
+              <div className="flex items-center gap-2">
+                {reformQueue.length > 0 && (
+                  <Button size="sm" variant="ghost" className="text-muted-foreground" onClick={(e) => { e.stopPropagation(); setShowQueueDialog(true); }}>
+                    <Eye className="mr-1.5 h-4 w-4" />
+                    Ver
                   </Button>
-                </Link>
-              )}
+                )}
+                {reformQueue.length > 0 && (
+                  <Link href="/operacoes/enviar-reforma" onClick={(e) => e.stopPropagation()}>
+                    <Button size="sm" className="bg-orange-600 hover:bg-orange-700 text-white">
+                      <Send className="mr-2 h-4 w-4" />
+                      Enviar
+                    </Button>
+                  </Link>
+                )}
+              </div>
             </CardContent>
           </Card>
         </div>
@@ -845,6 +874,83 @@ export default function ReformaPage() {
             )}
           </TabsContent>
         </Tabs>
+
+        {/* Queue Dialog - mostra todos os itens na fila */}
+        <Dialog open={showQueueDialog} onOpenChange={setShowQueueDialog}>
+          <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <ShoppingCart className="h-5 w-5 text-orange-500" />
+                Itens na Fila de Reforma
+              </DialogTitle>
+              <DialogDescription>
+                {reformQueue.length} {reformQueue.length === 1 ? "item" : "itens"} | {reformQueue.reduce((s, q) => s + q.quantity, 0)} unidades no total
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-3">
+              {reformQueue.map((item) => {
+                const tool = getToolInfo(item.toolId);
+                return (
+                  <div key={item.id} className="flex items-center justify-between p-3 rounded-lg border border-border bg-secondary/50">
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-orange-500/10 shrink-0">
+                        <Package className="h-5 w-5 text-orange-500" />
+                      </div>
+                      <div className="min-w-0">
+                        <div className="flex flex-wrap items-center gap-1.5">
+                          {tool ? <ToolCodeDisplay code={tool.code} className="font-medium" /> : <span className="text-muted-foreground">N/A</span>}
+                          {tool && <PriceTag value={tool.unitValue} reformValue={tool.reformUnitValue} />}
+                        </div>
+                        <p className="text-xs text-muted-foreground truncate">{tool?.description || "N/A"}</p>
+                        <div className="flex flex-wrap items-center gap-2 mt-1">
+                          <Badge variant="outline" className="text-[10px] border-orange-500/30 text-orange-500">
+                            {item.supplierName}
+                          </Badge>
+                          {item.notes && (
+                            <span className="text-[10px] text-muted-foreground truncate max-w-[200px]">{item.notes}</span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-3 shrink-0">
+                      <div className="text-right">
+                        <p className="text-lg font-bold text-orange-500">{item.quantity}</p>
+                        <p className="text-[10px] text-muted-foreground">un.</p>
+                      </div>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
+                        onClick={() => handleRemoveFromQueue(item.id)}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                        <span className="sr-only">Remover da fila</span>
+                      </Button>
+                    </div>
+                  </div>
+                );
+              })}
+
+              {reformQueue.length === 0 && (
+                <div className="text-center py-8">
+                  <ShoppingCart className="h-10 w-10 mx-auto text-muted-foreground/30 mb-2" />
+                  <p className="text-muted-foreground">Fila vazia</p>
+                </div>
+              )}
+            </div>
+
+            {reformQueue.length > 0 && (
+              <div className="pt-3 border-t border-border">
+                <Link href="/operacoes/enviar-reforma" onClick={() => setShowQueueDialog(false)}>
+                  <Button className="w-full bg-orange-600 hover:bg-orange-700 text-white">
+                    <Send className="mr-2 h-4 w-4" />
+                    Enviar {reformQueue.length} {reformQueue.length === 1 ? "item" : "itens"} para Reforma
+                  </Button>
+                </Link>
+              </div>
+            )}
+          </DialogContent>
+        </Dialog>
 
         {/* Detail Dialog */}
         <Dialog open={!!selectedReformDetail} onOpenChange={(open) => !open && setSelectedReformDetail(null)}>
