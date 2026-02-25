@@ -18,6 +18,13 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
   Send,
   Package,
   FileText,
@@ -29,6 +36,7 @@ import {
   Wrench,
   ArrowLeft,
   AlertTriangle,
+  Filter,
 } from "lucide-react";
 import { useDataStore } from "@/lib/data-store";
 import { useNotifications } from "@/lib/notifications";
@@ -39,6 +47,7 @@ export default function EnviarReformaPage() {
   const { tools, reformQueue, setReformQueue, movements, setMovements, suppliers } = useDataStore();
   const { addNotification } = useNotifications();
 
+  const [supplierFilter, setSupplierFilter] = useState<string>("all");
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [notaNumber, setNotaNumber] = useState("");
   const [packingListNumber, setPackingListNumber] = useState("");
@@ -69,6 +78,23 @@ export default function EnviarReformaPage() {
     });
   };
 
+  // Unique suppliers in the queue for filter
+  const queueSuppliers = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const item of reformQueue) {
+      if (!map.has(item.supplierId)) {
+        map.set(item.supplierId, item.supplierName);
+      }
+    }
+    return Array.from(map.entries()).map(([id, name]) => ({ id, name }));
+  }, [reformQueue]);
+
+  // Filtered queue based on supplier filter
+  const filteredQueue = useMemo(() => {
+    if (supplierFilter === "all") return reformQueue;
+    return reformQueue.filter(q => q.supplierId === supplierFilter);
+  }, [reformQueue, supplierFilter]);
+
   // Grouped summary by supplier for selected items
   const selectedItems = useMemo(() => reformQueue.filter(q => selectedIds.has(q.id)), [reformQueue, selectedIds]);
   const totalSelectedQty = useMemo(() => selectedItems.reduce((s, q) => s + q.quantity, 0), [selectedItems]);
@@ -87,10 +113,10 @@ export default function EnviarReformaPage() {
   }, [selectedItems]);
 
   const toggleSelectAll = () => {
-    if (selectedIds.size === reformQueue.length) {
+    if (selectedIds.size === filteredQueue.length) {
       setSelectedIds(new Set());
     } else {
-      setSelectedIds(new Set(reformQueue.map(q => q.id)));
+      setSelectedIds(new Set(filteredQueue.map(q => q.id)));
     }
   };
 
@@ -171,8 +197,8 @@ export default function EnviarReformaPage() {
     setTimeout(() => setSuccess(false), 6000);
   };
 
-  const allSelected = reformQueue.length > 0 && selectedIds.size === reformQueue.length;
-  const someSelected = selectedIds.size > 0 && selectedIds.size < reformQueue.length;
+  const allSelected = filteredQueue.length > 0 && selectedIds.size === filteredQueue.length;
+  const someSelected = selectedIds.size > 0 && selectedIds.size < filteredQueue.length;
 
   return (
     <div className="min-h-screen">
@@ -237,7 +263,7 @@ export default function EnviarReformaPage() {
             <div className="xl:col-span-2 space-y-4">
               <Card className="bg-card border-border">
                 <CardHeader>
-                  <div className="flex items-center justify-between">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                     <div>
                       <CardTitle className="flex items-center gap-2">
                         <Package className="h-5 w-5 text-orange-500" />
@@ -247,17 +273,40 @@ export default function EnviarReformaPage() {
                         Selecione os itens que deseja enviar neste lote
                       </CardDescription>
                     </div>
-                    {selectedIds.size > 0 && (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="text-destructive border-destructive/30 hover:bg-destructive/10"
-                        onClick={handleRemoveSelected}
-                      >
-                        <Trash2 className="mr-2 h-4 w-4" />
-                        Remover {selectedIds.size} da fila
-                      </Button>
-                    )}
+                    <div className="flex items-center gap-2">
+                      {/* Supplier Filter */}
+                      <div className="flex items-center gap-2">
+                        <Filter className="h-4 w-4 text-muted-foreground shrink-0" />
+                        <Select
+                          value={supplierFilter}
+                          onValueChange={(v) => {
+                            setSupplierFilter(v);
+                            setSelectedIds(new Set());
+                          }}
+                        >
+                          <SelectTrigger className="w-[180px] h-9">
+                            <SelectValue placeholder="Fornecedor" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="all">Todos os Fornecedores</SelectItem>
+                            {queueSuppliers.map((s) => (
+                              <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      {selectedIds.size > 0 && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="text-destructive border-destructive/30 hover:bg-destructive/10"
+                          onClick={handleRemoveSelected}
+                        >
+                          <Trash2 className="mr-2 h-4 w-4" />
+                          Remover {selectedIds.size}
+                        </Button>
+                      )}
+                    </div>
                   </div>
                 </CardHeader>
                 <CardContent>
@@ -281,19 +330,21 @@ export default function EnviarReformaPage() {
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {reformQueue.map((item) => {
+                        {filteredQueue.map((item) => {
                           const tool = getToolInfo(item.toolId);
                           const isSelected = selectedIds.has(item.id);
                           return (
                             <TableRow
                               key={item.id}
-                              className={isSelected ? "bg-orange-500/5" : ""}
+                              className={`cursor-pointer transition-colors ${isSelected ? "bg-orange-500/10 border-l-2 border-l-orange-500" : "hover:bg-secondary/50"}`}
+                              onClick={() => toggleSelect(item.id)}
                             >
                               <TableCell>
                                 <Checkbox
                                   checked={isSelected}
                                   onCheckedChange={() => toggleSelect(item.id)}
                                   aria-label={`Selecionar ${tool?.code || "item"}`}
+                                  className={`h-5 w-5 ${isSelected ? "border-orange-500 data-[state=checked]:bg-orange-500 data-[state=checked]:text-white" : ""}`}
                                 />
                               </TableCell>
                               <TableCell>
@@ -307,7 +358,11 @@ export default function EnviarReformaPage() {
                                 {tool?.description || "N/A"}
                               </TableCell>
                               <TableCell className="text-center font-bold">{item.quantity}</TableCell>
-                              <TableCell className="text-sm">{item.supplierName}</TableCell>
+                              <TableCell className="text-sm">
+                                <Badge variant="outline" className="border-orange-500/30 text-orange-400 text-[10px]">
+                                  {item.supplierName}
+                                </Badge>
+                              </TableCell>
                               <TableCell className="text-sm text-muted-foreground max-w-[120px] truncate">
                                 {item.notes || "-"}
                               </TableCell>
