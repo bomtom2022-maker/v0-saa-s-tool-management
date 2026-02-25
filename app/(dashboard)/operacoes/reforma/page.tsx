@@ -43,6 +43,8 @@ import {
   Trash2,
   Send,
   ShoppingCart,
+  Pencil,
+  Save,
   Filter,
   RotateCcw,
   CalendarClock,
@@ -75,6 +77,10 @@ export default function ReformaPage() {
   const [reformSupplierFilter, setReformSupplierFilter] = useState("all");
   const [selectedReformDetail, setSelectedReformDetail] = useState<any>(null);
   const [showQueueDialog, setShowQueueDialog] = useState(false);
+  const [editingQueueItemId, setEditingQueueItemId] = useState<string | null>(null);
+  const [editQty, setEditQty] = useState("");
+  const [editSupplierId, setEditSupplierId] = useState("");
+  const [editNotes, setEditNotes] = useState("");
 
   useEffect(() => {
     setCurrentTime(new Date());
@@ -331,22 +337,12 @@ export default function ReformaPage() {
                   </p>
                 </div>
               </div>
-              <div className="flex items-center gap-2">
-                {reformQueue.length > 0 && (
-                  <Button size="sm" variant="ghost" className="text-muted-foreground" onClick={(e) => { e.stopPropagation(); setShowQueueDialog(true); }}>
-                    <Eye className="mr-1.5 h-4 w-4" />
-                    Ver
-                  </Button>
-                )}
-                {reformQueue.length > 0 && (
-                  <Link href="/operacoes/enviar-reforma" onClick={(e) => e.stopPropagation()}>
-                    <Button size="sm" className="bg-orange-600 hover:bg-orange-700 text-white">
-                      <Send className="mr-2 h-4 w-4" />
-                      Enviar
-                    </Button>
-                  </Link>
-                )}
-              </div>
+              {reformQueue.length > 0 && (
+                <Button size="sm" variant="ghost" className="text-muted-foreground" onClick={(e) => { e.stopPropagation(); setShowQueueDialog(true); }}>
+                  <Eye className="mr-1.5 h-4 w-4" />
+                  Ver / Editar
+                </Button>
+              )}
             </CardContent>
           </Card>
         </div>
@@ -875,8 +871,8 @@ export default function ReformaPage() {
           </TabsContent>
         </Tabs>
 
-        {/* Queue Dialog - mostra todos os itens na fila */}
-        <Dialog open={showQueueDialog} onOpenChange={setShowQueueDialog}>
+        {/* Queue Dialog - ver e editar itens na fila */}
+        <Dialog open={showQueueDialog} onOpenChange={(open) => { if (!open) { setEditingQueueItemId(null); } setShowQueueDialog(open); }}>
           <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2">
@@ -884,12 +880,90 @@ export default function ReformaPage() {
                 Itens na Fila de Reforma
               </DialogTitle>
               <DialogDescription>
-                {reformQueue.length} {reformQueue.length === 1 ? "item" : "itens"} | {reformQueue.reduce((s, q) => s + q.quantity, 0)} unidades no total
+                {reformQueue.length} {reformQueue.length === 1 ? "item" : "itens"} | {reformQueue.reduce((s, q) => s + q.quantity, 0)} unidades no total.
+                Clique no lapiz para editar.
               </DialogDescription>
             </DialogHeader>
             <div className="space-y-3">
               {reformQueue.map((item) => {
                 const tool = getToolInfo(item.toolId);
+                const isEditing = editingQueueItemId === item.id;
+
+                if (isEditing) {
+                  return (
+                    <div key={item.id} className="p-4 rounded-lg border-2 border-primary bg-primary/5 space-y-3">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          {tool ? <ToolCodeDisplay code={tool.code} className="font-bold" /> : <span>N/A</span>}
+                        </div>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => setEditingQueueItemId(null)}
+                          className="text-xs text-muted-foreground"
+                        >
+                          Cancelar
+                        </Button>
+                      </div>
+                      <p className="text-xs text-muted-foreground">{tool?.description || "N/A"}</p>
+
+                      <div className="grid grid-cols-2 gap-3">
+                        <div className="grid gap-1.5">
+                          <Label className="text-xs">Quantidade</Label>
+                          <Input
+                            type="number"
+                            min="1"
+                            value={editQty}
+                            onChange={(e) => setEditQty(e.target.value)}
+                            className="h-9"
+                          />
+                        </div>
+                        <div className="grid gap-1.5">
+                          <Label className="text-xs">Fornecedor</Label>
+                          <Select value={editSupplierId} onValueChange={setEditSupplierId}>
+                            <SelectTrigger className="h-9">
+                              <SelectValue placeholder="Selecione..." />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {suppliers.map((s) => (
+                                <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      </div>
+
+                      <div className="grid gap-1.5">
+                        <Label className="text-xs">Observacoes</Label>
+                        <Input
+                          value={editNotes}
+                          onChange={(e) => setEditNotes(e.target.value)}
+                          placeholder="Observacoes..."
+                          className="h-9"
+                        />
+                      </div>
+
+                      <Button
+                        size="sm"
+                        className="w-full"
+                        disabled={!editQty || Number(editQty) <= 0 || !editSupplierId}
+                        onClick={() => {
+                          const supplierName = suppliers.find(s => s.id === editSupplierId)?.name || "";
+                          setReformQueue(prev => prev.map(q =>
+                            q.id === item.id
+                              ? { ...q, quantity: Number(editQty), supplierId: editSupplierId, supplierName, notes: editNotes }
+                              : q
+                          ));
+                          setEditingQueueItemId(null);
+                        }}
+                      >
+                        <Save className="mr-1.5 h-3.5 w-3.5" />
+                        Salvar
+                      </Button>
+                    </div>
+                  );
+                }
+
                 return (
                   <div key={item.id} className="flex items-center justify-between p-3 rounded-lg border border-border bg-secondary/50">
                     <div className="flex items-center gap-3 min-w-0">
@@ -912,11 +986,25 @@ export default function ReformaPage() {
                         </div>
                       </div>
                     </div>
-                    <div className="flex items-center gap-3 shrink-0">
-                      <div className="text-right">
+                    <div className="flex items-center gap-2 shrink-0">
+                      <div className="text-right mr-1">
                         <p className="text-lg font-bold text-orange-500">{item.quantity}</p>
                         <p className="text-[10px] text-muted-foreground">un.</p>
                       </div>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 text-muted-foreground hover:text-foreground"
+                        onClick={() => {
+                          setEditingQueueItemId(item.id);
+                          setEditQty(String(item.quantity));
+                          setEditSupplierId(item.supplierId);
+                          setEditNotes(item.notes);
+                        }}
+                      >
+                        <Pencil className="h-3.5 w-3.5" />
+                        <span className="sr-only">Editar item</span>
+                      </Button>
                       <Button
                         variant="ghost"
                         size="icon"
@@ -938,17 +1026,6 @@ export default function ReformaPage() {
                 </div>
               )}
             </div>
-
-            {reformQueue.length > 0 && (
-              <div className="pt-3 border-t border-border">
-                <Link href="/operacoes/enviar-reforma" onClick={() => setShowQueueDialog(false)}>
-                  <Button className="w-full bg-orange-600 hover:bg-orange-700 text-white">
-                    <Send className="mr-2 h-4 w-4" />
-                    Enviar {reformQueue.length} {reformQueue.length === 1 ? "item" : "itens"} para Reforma
-                  </Button>
-                </Link>
-              </div>
-            )}
           </DialogContent>
         </Dialog>
 
