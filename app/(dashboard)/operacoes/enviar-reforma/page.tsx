@@ -395,7 +395,7 @@ export default function EnviarReformaPage() {
                   <div className="grid gap-2">
                     <Label htmlFor="estimatedReturn" className="flex items-center gap-2">
                       <Calendar className="h-4 w-4 text-muted-foreground" />
-                      Data Estimada de Retorno
+                      Data Estimada de Retorno *
                     </Label>
                     <Input
                       id="estimatedReturn"
@@ -403,9 +403,10 @@ export default function EnviarReformaPage() {
                       value={estimatedReturn}
                       onChange={(e) => setEstimatedReturn(e.target.value)}
                       disabled={selectedIds.size === 0}
+                      required
                     />
                     <p className="text-xs text-muted-foreground">
-                      Opcional. Previsao de quando as ferramentas retornam.
+                      Previsao de quando as ferramentas retornam do fornecedor.
                     </p>
                   </div>
 
@@ -425,12 +426,15 @@ export default function EnviarReformaPage() {
                   {!confirmStep ? (
                     <Button
                       className="w-full bg-orange-600 hover:bg-orange-700 text-white"
-                      disabled={selectedIds.size === 0}
+                      disabled={selectedIds.size === 0 || !estimatedReturn}
                       onClick={() => setConfirmStep(true)}
                     >
                       <Send className="mr-2 h-4 w-4" />
                       Enviar {selectedIds.size} {selectedIds.size === 1 ? "item" : "itens"} para Reforma
                     </Button>
+                    {selectedIds.size > 0 && !estimatedReturn && (
+                      <p className="text-xs text-destructive text-center">Informe a data estimada de retorno para continuar</p>
+                    )}
                   ) : (
                     <div className="space-y-3">
                       <div className="p-3 rounded-lg bg-orange-500/10 border border-orange-500/30">
