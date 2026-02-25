@@ -16,6 +16,12 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import {
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from "@/components/ui/tabs";
+import {
   ArrowDownRight,
   Package,
   Search,
@@ -35,7 +41,9 @@ import { ToolCodeDisplay } from "@/components/dashboard/tool-code-display";
 export default function EntryPage() {
   const { tools, setTools, cabinets, drawers, toolTypes, movements, setMovements } = useDataStore();
   const { addNotification } = useNotifications();
-  // Existing tool state
+  const [tab, setTab] = useState("existing");
+
+  // Existing tool state (retorno de reforma)
   const [selectedTool, setSelectedTool] = useState<Tool | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [quantity, setQuantity] = useState("");
@@ -87,6 +95,70 @@ export default function EntryPage() {
     setSuccessMsg(msg);
     setSuccess(true);
     setTimeout(() => setSuccess(false), 5000);
+  };
+
+  // New tool entry state (ferramentas novas ja cadastradas)
+  const [newSearchTerm, setNewSearchTerm] = useState("");
+  const [newSelectedTool, setNewSelectedTool] = useState<Tool | null>(null);
+  const [newQuantity, setNewQuantity] = useState("");
+  const [newInvoiceNumber, setNewInvoiceNumber] = useState("");
+  const [newNotes, setNewNotes] = useState("");
+
+  const newFilteredTools = newSearchTerm.length > 0
+    ? tools.filter(
+        (tool) =>
+          tool.code.toLowerCase().includes(newSearchTerm.toLowerCase()) ||
+          tool.description.toLowerCase().includes(newSearchTerm.toLowerCase())
+      )
+    : [];
+
+  const handleNewEntry = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newSelectedTool || !newQuantity) return;
+    const qty = Number(newQuantity);
+    if (isNaN(qty) || qty <= 0) return;
+
+    setTools(prev =>
+      prev.map(t =>
+        t.id === newSelectedTool.id
+          ? { ...t, quantity: t.quantity + qty }
+          : t
+      )
+    );
+
+    const entryNotes = [
+      newInvoiceNumber ? `NF: ${newInvoiceNumber}` : null,
+      newNotes || null,
+    ].filter(Boolean).join(" | ") || `Entrada de ${qty} un. de ${newSelectedTool.code}`;
+
+    setMovements(prev => [
+      {
+        id: `mov-${Date.now()}`,
+        type: "entry" as const,
+        toolId: newSelectedTool.id,
+        userId: "eng-processo-1",
+        quantity: qty,
+        date: new Date().toISOString(),
+        notes: entryNotes,
+        invoiceNumber: newInvoiceNumber || undefined,
+      },
+      ...prev,
+    ]);
+
+    showSuccess(
+      `Entrada registrada: +${qty} un. de ${newSelectedTool.code} no ${getCabinetName(newSelectedTool.cabinetId)}${newInvoiceNumber ? ` | NF: ${newInvoiceNumber}` : ""}`
+    );
+    addNotification({
+      type: newInvoiceNumber ? "invoice" : "entry",
+      title: newInvoiceNumber ? "Entrada com Nota Fiscal" : "Entrada de Ferramenta Nova",
+      message: `+${qty} un. de ${newSelectedTool.code} (${newSelectedTool.description}) | Novo estoque: ${newSelectedTool.quantity + qty}`,
+    });
+
+    setNewSelectedTool(null);
+    setNewSearchTerm("");
+    setNewQuantity("");
+    setNewInvoiceNumber("");
+    setNewNotes("");
   };
 
   const pendingReforms = selectedTool ? getPendingReforms(selectedTool.id) : [];
@@ -281,7 +353,21 @@ export default function EntryPage() {
           </Card>
         )}
 
-        <div className="grid gap-6 lg:grid-cols-2">
+        <Tabs value={tab} onValueChange={setTab}>
+          <TabsList className="grid w-full grid-cols-2 max-w-md">
+            <TabsTrigger value="existing" className="flex items-center gap-2">
+              <Wrench className="h-4 w-4" />
+              Retorno de Reforma
+            </TabsTrigger>
+            <TabsTrigger value="new" className="flex items-center gap-2">
+              <Plus className="h-4 w-4" />
+              Ferramenta Nova
+            </TabsTrigger>
+          </TabsList>
+
+          {/* TAB: Retorno de reforma */}
+          <TabsContent value="existing">
+            <div className="grid gap-6 lg:grid-cols-2">
               {/* Tool Selection */}
               <Card className="bg-card border-border">
                 <CardHeader>
@@ -712,7 +798,221 @@ export default function EntryPage() {
                   </form>
                 </CardContent>
               </Card>
-        </div>
+            </div>
+          </TabsContent>
+
+          {/* TAB: Ferramenta Nova (ja existente no sistema) */}
+          <TabsContent value="new">
+            <div className="grid gap-6 lg:grid-cols-2">
+              {/* Search */}
+              <Card className="bg-card border-border">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Search className="h-5 w-5 text-primary" />
+                    Buscar Ferramenta
+                  </CardTitle>
+                  <CardDescription>
+                    Busque a ferramenta ja cadastrada no sistema para registrar a entrada de unidades novas.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                    <Input
+                      placeholder="Buscar por codigo ou descricao..."
+                      value={newSearchTerm}
+                      onChange={(e) => {
+                        setNewSearchTerm(e.target.value);
+                        if (!e.target.value) setNewSelectedTool(null);
+                      }}
+                      className="pl-9"
+                    />
+                  </div>
+
+                  <div className="max-h-[400px] overflow-y-auto space-y-2">
+                    {newSearchTerm && newFilteredTools.length === 0 ? (
+                      <div className="text-center py-6 space-y-2">
+                        <Package className="h-8 w-8 mx-auto text-muted-foreground" />
+                        <p className="text-sm text-muted-foreground">
+                          {"Nenhuma ferramenta encontrada para \""}{newSearchTerm}{"\""}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          Cadastre novas ferramentas pela aba Catalogo.
+                        </p>
+                      </div>
+                    ) : newSearchTerm ? (
+                      newFilteredTools.map((tool) => (
+                        <div
+                          key={tool.id}
+                          onClick={() => {
+                            setNewSelectedTool(tool);
+                            setNewSearchTerm(tool.code);
+                          }}
+                          className={`flex items-center justify-between p-3 rounded-lg border cursor-pointer transition-colors ${
+                            newSelectedTool?.id === tool.id
+                              ? "border-primary bg-primary/5"
+                              : "border-border hover:border-primary/50"
+                          }`}
+                        >
+                          <div className="flex items-center gap-3">
+                            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-secondary">
+                              <Package className="h-4 w-4 text-muted-foreground" />
+                            </div>
+                            <div>
+                              <div className="flex flex-wrap items-center gap-1.5">
+                                <ToolCodeDisplay code={tool.code} className="font-medium text-sm" />
+                                <PriceTag value={tool.unitValue} reformValue={tool.reformUnitValue} />
+                              </div>
+                              <p className="text-xs text-muted-foreground truncate max-w-[180px]">
+                                {tool.description}
+                              </p>
+                            </div>
+                          </div>
+                          <div className="text-right">
+                            <Badge variant="secondary" className="text-[10px]">{getTypeName(tool.typeId)}</Badge>
+                            <p className="text-xs text-muted-foreground mt-0.5">
+                              Estoque: <span className="font-bold">{tool.quantity}</span>
+                            </p>
+                            <p className="text-[10px] text-muted-foreground">
+                              {getCabinetName(tool.cabinetId)}
+                            </p>
+                          </div>
+                        </div>
+                      ))
+                    ) : (
+                      <p className="text-center text-muted-foreground py-8 text-sm">
+                        Digite para buscar ferramentas existentes
+                      </p>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Entry Form */}
+              <Card className="bg-card border-border">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Plus className="h-5 w-5 text-primary" />
+                    Registrar Entrada
+                  </CardTitle>
+                  <CardDescription>
+                    {newSelectedTool
+                      ? `Adicionando unidades novas a ${newSelectedTool.code}`
+                      : "Selecione uma ferramenta ao lado para registrar a entrada"}
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <form onSubmit={handleNewEntry} className="space-y-4">
+                    {newSelectedTool ? (
+                      <div className="p-4 rounded-lg bg-primary/5 border border-primary/20">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-3">
+                            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
+                              <Package className="h-5 w-5 text-primary" />
+                            </div>
+                            <div>
+                              <div className="flex flex-wrap items-center gap-1.5">
+                                <ToolCodeDisplay code={newSelectedTool.code} className="font-bold" />
+                                <PriceTag value={newSelectedTool.unitValue} reformValue={newSelectedTool.reformUnitValue} suffix="/un" />
+                              </div>
+                              <p className="text-sm text-muted-foreground">{newSelectedTool.description}</p>
+                            </div>
+                          </div>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => {
+                              setNewSelectedTool(null);
+                              setNewSearchTerm("");
+                            }}
+                            className="text-xs"
+                          >
+                            Limpar
+                          </Button>
+                        </div>
+                        <div className="mt-3 flex flex-wrap gap-4 text-sm">
+                          <div className="flex items-center gap-1.5">
+                            <Archive className="h-3.5 w-3.5 text-muted-foreground" />
+                            <span>{getCabinetName(newSelectedTool.cabinetId)}</span>
+                          </div>
+                          <div>
+                            Estoque atual: <span className="font-bold">{newSelectedTool.quantity}</span>
+                          </div>
+                          <div>
+                            Min: <span className="font-medium">{newSelectedTool.minStock}</span>
+                          </div>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="p-8 rounded-lg border border-dashed border-border text-center">
+                        <Package className="h-10 w-10 mx-auto text-muted-foreground mb-2" />
+                        <p className="text-muted-foreground">Selecione uma ferramenta ao lado</p>
+                      </div>
+                    )}
+
+                    {/* Invoice */}
+                    <div className="grid gap-2">
+                      <Label htmlFor="newInvoice" className="flex items-center gap-2">
+                        <FileText className="h-4 w-4 text-muted-foreground" />
+                        Numero da Nota Fiscal
+                      </Label>
+                      <Input
+                        id="newInvoice"
+                        placeholder="Ex: NF-2026-001234"
+                        value={newInvoiceNumber}
+                        onChange={(e) => setNewInvoiceNumber(e.target.value)}
+                        disabled={!newSelectedTool}
+                      />
+                    </div>
+
+                    {/* Quantity */}
+                    <div className="grid gap-2">
+                      <Label htmlFor="newQty">Quantidade *</Label>
+                      <Input
+                        id="newQty"
+                        type="number"
+                        min="1"
+                        placeholder="Quantas unidades novas?"
+                        value={newQuantity}
+                        onChange={(e) => setNewQuantity(e.target.value)}
+                        required
+                        disabled={!newSelectedTool}
+                        className="text-lg font-mono"
+                      />
+                      {newSelectedTool && newQuantity && Number(newQuantity) > 0 && (
+                        <p className="text-xs text-muted-foreground">
+                          Novo estoque: {newSelectedTool.quantity} + {newQuantity} = <span className="font-bold text-foreground">{newSelectedTool.quantity + Number(newQuantity)}</span>
+                        </p>
+                      )}
+                    </div>
+
+                    {/* Notes */}
+                    <div className="grid gap-2">
+                      <Label htmlFor="newNotes">Observacoes</Label>
+                      <Textarea
+                        id="newNotes"
+                        placeholder="Informacoes adicionais..."
+                        value={newNotes}
+                        onChange={(e) => setNewNotes(e.target.value)}
+                        disabled={!newSelectedTool}
+                      />
+                    </div>
+
+                    <Button
+                      type="submit"
+                      className="w-full"
+                      disabled={!newSelectedTool || !newQuantity || Number(newQuantity) <= 0}
+                    >
+                      <Plus className="mr-2 h-4 w-4" />
+                      Registrar Entrada de {newQuantity || 0} un.
+                    </Button>
+                  </form>
+                </CardContent>
+              </Card>
+            </div>
+          </TabsContent>
+        </Tabs>
       </div>
     </div>
   );
