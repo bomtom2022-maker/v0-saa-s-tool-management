@@ -238,6 +238,7 @@ export default function EntryPage() {
       const nfRetorno = invoiceNumber || selectedReform.invoiceNumber || "";
 
       // Register reform_return movement - qty is already clamped so it matches exactly
+      const returnDate = new Date().toISOString();
       setMovements(prev => [
         {
           id: `mov-${Date.now()}-ret`,
@@ -245,7 +246,8 @@ export default function EntryPage() {
           toolId: selectedTool.id,
           userId: "eng-processo-1",
           quantity: qty,
-          date: new Date().toISOString(),
+          date: returnDate,
+          actualReturnDate: returnDate,
           notes: `Retorno reforma - ${selectedTool.code} -> ${newCode} | NF retorno: ${nfRetorno || "N/A"} | NF envio: ${selectedReform.invoiceNumber || "N/A"}${selectedReform.supplier ? ` | Fornecedor: ${selectedReform.supplier}` : ""} | Destino: ${getCabinetName(targetCabinetId)}`,
           invoiceNumber: nfRetorno || undefined,
         },

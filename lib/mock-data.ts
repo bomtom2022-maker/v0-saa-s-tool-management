@@ -103,6 +103,7 @@ export interface Movement {
   packingListNumber?: string; // numero do romaneio
   supplier?: string;
   estimatedReturn?: string; // ISO date - estimated return from reform
+  actualReturnDate?: string; // ISO date - data real do recebimento da reforma
 }
 
 // Placeholder cabinets
