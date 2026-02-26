@@ -55,11 +55,34 @@ export default function EntryPage() {
   const [success, setSuccess] = useState(false);
   const [successMsg, setSuccessMsg] = useState("");
 
-  const filteredTools = tools.filter(
-    (tool) =>
-      tool.code.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      tool.description.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  // For "Retorno de Reforma" tab - only show tools that have pending reforms
+  const filteredToolsWithReform = searchTerm.length > 0
+    ? tools.filter((tool) => {
+        const matchesSearch =
+          tool.code.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          tool.description.toLowerCase().includes(searchTerm.toLowerCase());
+        if (!matchesSearch) return false;
+        // Only include if has pending reform
+        const pending = getPendingReformsForTool(tool.id);
+        return pending > 0;
+      })
+    : [];
+
+  // Helper to get pending reform qty for a tool (used before full getPendingReforms is available)
+  function getPendingReformsForTool(toolId: string) {
+    const sends = movements
+      .filter(m => m.toolId === toolId && m.type === "reform_send")
+      .map(m => ({ ...m, remaining: m.quantity }));
+    const returns = movements.filter(m => m.toolId === toolId && m.type === "reform_return");
+    let totalReturned = returns.reduce((acc, r) => acc + r.quantity, 0);
+    for (const s of sends) {
+      if (totalReturned <= 0) break;
+      const deduct = Math.min(s.remaining, totalReturned);
+      s.remaining -= deduct;
+      totalReturned -= deduct;
+    }
+    return sends.filter(s => s.remaining > 0).reduce((acc, s) => acc + s.remaining, 0);
+  }
 
   const getTypeName = (typeId: string) => toolTypes.find((t) => t.id === typeId)?.name || "N/A";
   const getCabinetName = (cabinetId: string) => cabinets.find((c) => c.id === cabinetId)?.name || "N/A";
@@ -373,14 +396,19 @@ export default function EntryPage() {
               {/* Tool Selection */}
               <Card className="bg-card border-border">
                 <CardHeader>
-                  <CardTitle>Selecionar Ferramenta</CardTitle>
-                  <CardDescription>Busque a ferramenta nova ou reformada para registrar a entrada</CardDescription>
+                  <CardTitle className="flex items-center gap-2">
+                    <Wrench className="h-5 w-5 text-orange-500" />
+                    Selecionar Ferramenta em Reforma
+                  </CardTitle>
+                  <CardDescription>
+                    Busque ferramentas que estao aguardando retorno de reforma
+                  </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div className="relative">
                     <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                     <Input
-                      placeholder="Buscar por codigo ou descricao..."
+                      placeholder="Buscar ferramenta em reforma..."
                       value={searchTerm}
                       onChange={(e) => setSearchTerm(e.target.value)}
                       className="pl-9"
@@ -388,12 +416,18 @@ export default function EntryPage() {
                   </div>
 
                   <div className="max-h-[400px] overflow-y-auto space-y-2">
-                    {searchTerm && filteredTools.length === 0 ? (
-                      <p className="text-center text-muted-foreground py-4">
-                        Nenhuma ferramenta encontrada
-                      </p>
+                    {searchTerm && filteredToolsWithReform.length === 0 ? (
+                      <div className="text-center py-6 space-y-2">
+                        <Wrench className="h-8 w-8 mx-auto text-muted-foreground/50" />
+                        <p className="text-muted-foreground text-sm">
+                          Nenhuma ferramenta em reforma encontrada
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          Apenas ferramentas com envio para reforma pendente aparecem aqui.
+                        </p>
+                      </div>
                     ) : searchTerm ? (
-                      filteredTools.map((tool) => {
+                      filteredToolsWithReform.map((tool) => {
                         const toolPendingReforms = getPendingReforms(tool.id);
                         const reformPending = toolPendingReforms.reduce((a, s) => a + s.remaining, 0);
                         return (
@@ -446,9 +480,12 @@ export default function EntryPage() {
                         );
                       })
                     ) : (
-                      <p className="text-center text-muted-foreground py-8">
-                        Digite para buscar ferramentas
-                      </p>
+                      <div className="text-center py-8 space-y-2">
+                        <Wrench className="h-8 w-8 mx-auto text-orange-500/30" />
+                        <p className="text-muted-foreground">
+                          Digite para buscar ferramentas em reforma
+                        </p>
+                      </div>
                     )}
                   </div>
                 </CardContent>
@@ -457,7 +494,7 @@ export default function EntryPage() {
               {/* Entry Form */}
               <Card className="bg-card border-border">
                 <CardHeader>
-                  <CardTitle>Dados da Entrada</CardTitle>
+                  <CardTitle>Dados do Retorno</CardTitle>
                   <CardDescription>Preencha os dados da movimentacao</CardDescription>
                 </CardHeader>
                 <CardContent>
