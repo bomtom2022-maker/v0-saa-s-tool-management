@@ -112,6 +112,10 @@ export default function EnviarReformaPage() {
     return Array.from(map.values());
   }, [selectedItems]);
 
+  // Check if selected items have multiple suppliers - this should block sending
+  const hasMultipleSuppliers = supplierSummary.length > 1;
+  const singleSupplierName = supplierSummary.length === 1 ? supplierSummary[0].name : null;
+
   const toggleSelectAll = () => {
     if (selectedIds.size === filteredQueue.length) {
       setSelectedIds(new Set());
@@ -476,11 +480,34 @@ export default function EnviarReformaPage() {
                     />
                   </div>
 
+                  {/* Alert: Multiple suppliers selected - BLOCK */}
+                  {hasMultipleSuppliers && selectedIds.size > 0 && (
+                    <div className="p-3 rounded-lg bg-destructive/10 border border-destructive/30">
+                      <div className="flex items-start gap-2">
+                        <AlertTriangle className="h-5 w-5 text-destructive shrink-0 mt-0.5" />
+                        <div>
+                          <p className="text-sm font-medium text-destructive">Fornecedores diferentes selecionados</p>
+                          <p className="text-xs text-muted-foreground mt-1">
+                            Nao e possivel enviar itens de fornecedores diferentes na mesma nota fiscal.
+                            Selecione apenas itens do mesmo fornecedor ou use o filtro.
+                          </p>
+                          <div className="mt-2 flex flex-wrap gap-1">
+                            {supplierSummary.map((s, i) => (
+                              <Badge key={i} variant="outline" className="border-destructive/30 text-destructive text-[10px]">
+                                {s.name} ({s.qty} un.)
+                              </Badge>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
                   {/* Confirm / Send */}
                   {!confirmStep ? (
                     <Button
                       className="w-full bg-orange-600 hover:bg-orange-700 text-white"
-                      disabled={selectedIds.size === 0}
+                      disabled={selectedIds.size === 0 || hasMultipleSuppliers}
                       onClick={() => setConfirmStep(true)}
                     >
                       <Send className="mr-2 h-4 w-4" />
@@ -489,18 +516,44 @@ export default function EnviarReformaPage() {
                   ) : (
                     <div className="space-y-3">
                       <div className="p-3 rounded-lg bg-orange-500/10 border border-orange-500/30">
-                        <div className="flex items-center gap-2 mb-2">
+                        <div className="flex items-center gap-2 mb-3">
                           <AlertTriangle className="h-4 w-4 text-orange-500" />
-                          <p className="text-sm font-medium text-foreground">Confirmar envio?</p>
+                          <p className="text-sm font-medium text-foreground">Confirmar envio para reforma?</p>
                         </div>
-                        <div className="text-xs text-muted-foreground space-y-1">
-                          <p>{selectedIds.size} {selectedIds.size === 1 ? "item" : "itens"} ({totalSelectedQty} un.) serao registrados como enviados para reforma.</p>
-                          {notaNumber && <p>NF: {notaNumber}</p>}
-                          {packingListNumber && <p>Romaneio: {packingListNumber}</p>}
-                          {estimatedReturn && <p>Retorno estimado: {formatDate(estimatedReturn)}</p>}
-                          {supplierSummary.length > 0 && (
-                            <p>Fornecedores: {supplierSummary.map(s => s.name).join(", ")}</p>
-                          )}
+
+                        {/* Supplier info */}
+                        <div className="mb-3 p-2 rounded bg-secondary/50">
+                          <p className="text-xs font-medium text-foreground mb-1">Fornecedor:</p>
+                          <Badge variant="outline" className="border-orange-500/30 text-orange-400">
+                            {singleSupplierName}
+                          </Badge>
+                        </div>
+
+                        {/* Items list */}
+                        <div className="mb-3">
+                          <p className="text-xs font-medium text-foreground mb-2">Itens a enviar:</p>
+                          <div className="max-h-[120px] overflow-y-auto space-y-1">
+                            {selectedItems.map((item) => {
+                              const tool = getToolInfo(item.toolId);
+                              return (
+                                <div key={item.id} className="flex items-center justify-between text-xs p-1.5 rounded bg-secondary/30">
+                                  <div className="flex items-center gap-2 min-w-0">
+                                    <span className="font-mono font-medium text-foreground">{tool?.code || "N/A"}</span>
+                                    <span className="text-muted-foreground truncate">{tool?.description || ""}</span>
+                                  </div>
+                                  <Badge variant="secondary" className="shrink-0 text-[10px]">{item.quantity} un.</Badge>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+
+                        {/* NF / Romaneio info */}
+                        <div className="text-xs text-muted-foreground space-y-1 border-t border-border pt-2">
+                          <p><span className="font-medium text-foreground">Total:</span> {selectedIds.size} {selectedIds.size === 1 ? "item" : "itens"} ({totalSelectedQty} un.)</p>
+                          {notaNumber && <p><span className="font-medium text-foreground">NF:</span> {notaNumber}</p>}
+                          {packingListNumber && <p><span className="font-medium text-foreground">Romaneio:</span> {packingListNumber}</p>}
+                          {estimatedReturn && <p><span className="font-medium text-foreground">Retorno estimado:</span> {formatDate(estimatedReturn)}</p>}
                         </div>
                       </div>
                       <div className="grid grid-cols-2 gap-2">
@@ -515,7 +568,7 @@ export default function EnviarReformaPage() {
                           onClick={handleSend}
                         >
                           <CheckCircle className="mr-2 h-4 w-4" />
-                          Confirmar
+                          Confirmar Envio
                         </Button>
                       </div>
                     </div>
