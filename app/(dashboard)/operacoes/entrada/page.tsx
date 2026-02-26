@@ -28,7 +28,6 @@ import {
   CheckCircle,
   Plus,
   Archive,
-  Layers,
   FileText,
   Wrench,
   AlertTriangle,
@@ -44,7 +43,7 @@ export default function EntryPage() {
   const { addNotification } = useNotifications();
   const [tab, setTab] = useState("existing");
 
-  // Existing tool state
+  // Existing tool state (retorno de reforma)
   const [selectedTool, setSelectedTool] = useState<Tool | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [quantity, setQuantity] = useState("");
@@ -56,41 +55,39 @@ export default function EntryPage() {
   const [success, setSuccess] = useState(false);
   const [successMsg, setSuccessMsg] = useState("");
 
-  // New tool state
-  const [newSearchTerm, setNewSearchTerm] = useState("");
-  const [newSelectedTool, setNewSelectedTool] = useState<Tool | null>(null);
-  const [newCode, setNewCode] = useState("");
-  const [newDescription, setNewDescription] = useState("");
-  const [newTypeId, setNewTypeId] = useState("");
-  const [newSupplier, setNewSupplier] = useState("");
-  const [newCabinetId, setNewCabinetId] = useState("");
-  const [newDrawerId, setNewDrawerId] = useState("");
-  const [newPosition, setNewPosition] = useState("");
-  const [newQuantity, setNewQuantity] = useState("");
-  const [newMinStock, setNewMinStock] = useState("");
-  const [newUnitValue, setNewUnitValue] = useState("");
-  const [newReformUnitValue, setNewReformUnitValue] = useState("");
-  const [newNotes, setNewNotes] = useState("");
-
-  const newFilteredTools = newSearchTerm.length > 0
-    ? tools.filter(
-        (tool) =>
-          tool.code.toLowerCase().includes(newSearchTerm.toLowerCase()) ||
-          tool.description.toLowerCase().includes(newSearchTerm.toLowerCase())
-      )
+  // For "Retorno de Reforma" tab - only show tools that have pending reforms
+  const filteredToolsWithReform = searchTerm.length > 0
+    ? tools.filter((tool) => {
+        const matchesSearch =
+          tool.code.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          tool.description.toLowerCase().includes(searchTerm.toLowerCase());
+        if (!matchesSearch) return false;
+        // Only include if has pending reform
+        const pending = getPendingReformsForTool(tool.id);
+        return pending > 0;
+      })
     : [];
 
-  const filteredTools = tools.filter(
-    (tool) =>
-      tool.code.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      tool.description.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  // Helper to get pending reform qty for a tool (used before full getPendingReforms is available)
+  function getPendingReformsForTool(toolId: string) {
+    const sends = movements
+      .filter(m => m.toolId === toolId && m.type === "reform_send")
+      .map(m => ({ ...m, remaining: m.quantity }));
+    const returns = movements.filter(m => m.toolId === toolId && m.type === "reform_return");
+    let totalReturned = returns.reduce((acc, r) => acc + r.quantity, 0);
+    for (const s of sends) {
+      if (totalReturned <= 0) break;
+      const deduct = Math.min(s.remaining, totalReturned);
+      s.remaining -= deduct;
+      totalReturned -= deduct;
+    }
+    return sends.filter(s => s.remaining > 0).reduce((acc, s) => acc + s.remaining, 0);
+  }
 
   const getTypeName = (typeId: string) => toolTypes.find((t) => t.id === typeId)?.name || "N/A";
   const getCabinetName = (cabinetId: string) => cabinets.find((c) => c.id === cabinetId)?.name || "N/A";
 
   const drawersForCabinet = (cabinetId: string) => drawers.filter((d) => d.cabinetId === cabinetId);
-  const newDrawersForCabinet = drawersForCabinet(newCabinetId);
   const destDrawersForCabinet = drawersForCabinet(destCabinetId || selectedTool?.cabinetId || "");
 
   // Calculate all pending reform sends for a tool (each with remaining qty)
@@ -121,6 +118,70 @@ export default function EntryPage() {
     setSuccessMsg(msg);
     setSuccess(true);
     setTimeout(() => setSuccess(false), 5000);
+  };
+
+  // New tool entry state (ferramentas novas ja cadastradas)
+  const [newSearchTerm, setNewSearchTerm] = useState("");
+  const [newSelectedTool, setNewSelectedTool] = useState<Tool | null>(null);
+  const [newQuantity, setNewQuantity] = useState("");
+  const [newInvoiceNumber, setNewInvoiceNumber] = useState("");
+  const [newNotes, setNewNotes] = useState("");
+
+  const newFilteredTools = newSearchTerm.length > 0
+    ? tools.filter(
+        (tool) =>
+          tool.code.toLowerCase().includes(newSearchTerm.toLowerCase()) ||
+          tool.description.toLowerCase().includes(newSearchTerm.toLowerCase())
+      )
+    : [];
+
+  const handleNewEntry = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newSelectedTool || !newQuantity) return;
+    const qty = Number(newQuantity);
+    if (isNaN(qty) || qty <= 0) return;
+
+    setTools(prev =>
+      prev.map(t =>
+        t.id === newSelectedTool.id
+          ? { ...t, quantity: t.quantity + qty }
+          : t
+      )
+    );
+
+    const entryNotes = [
+      newInvoiceNumber ? `NF: ${newInvoiceNumber}` : null,
+      newNotes || null,
+    ].filter(Boolean).join(" | ") || `Entrada de ${qty} un. de ${newSelectedTool.code}`;
+
+    setMovements(prev => [
+      {
+        id: `mov-${Date.now()}`,
+        type: "entry" as const,
+        toolId: newSelectedTool.id,
+        userId: "eng-processo-1",
+        quantity: qty,
+        date: new Date().toISOString(),
+        notes: entryNotes,
+        invoiceNumber: newInvoiceNumber || undefined,
+      },
+      ...prev,
+    ]);
+
+    showSuccess(
+      `Entrada registrada: +${qty} un. de ${newSelectedTool.code} no ${getCabinetName(newSelectedTool.cabinetId)}${newInvoiceNumber ? ` | NF: ${newInvoiceNumber}` : ""}`
+    );
+    addNotification({
+      type: newInvoiceNumber ? "invoice" : "entry",
+      title: newInvoiceNumber ? "Entrada com Nota Fiscal" : "Entrada de Ferramenta Nova",
+      message: `+${qty} un. de ${newSelectedTool.code} (${newSelectedTool.description}) | Novo estoque: ${newSelectedTool.quantity + qty}`,
+    });
+
+    setNewSelectedTool(null);
+    setNewSearchTerm("");
+    setNewQuantity("");
+    setNewInvoiceNumber("");
+    setNewNotes("");
   };
 
   const pendingReforms = selectedTool ? getPendingReforms(selectedTool.id) : [];
@@ -200,6 +261,7 @@ export default function EntryPage() {
       const nfRetorno = invoiceNumber || selectedReform.invoiceNumber || "";
 
       // Register reform_return movement - qty is already clamped so it matches exactly
+      const returnDate = new Date().toISOString();
       setMovements(prev => [
         {
           id: `mov-${Date.now()}-ret`,
@@ -207,7 +269,8 @@ export default function EntryPage() {
           toolId: selectedTool.id,
           userId: "eng-processo-1",
           quantity: qty,
-          date: new Date().toISOString(),
+          date: returnDate,
+          actualReturnDate: returnDate,
           notes: `Retorno reforma - ${selectedTool.code} -> ${newCode} | NF retorno: ${nfRetorno || "N/A"} | NF envio: ${selectedReform.invoiceNumber || "N/A"}${selectedReform.supplier ? ` | Fornecedor: ${selectedReform.supplier}` : ""} | Destino: ${getCabinetName(targetCabinetId)}`,
           invoiceNumber: nfRetorno || undefined,
         },
@@ -278,104 +341,6 @@ export default function EntryPage() {
     setSearchTerm("");
   };
 
-  // Handle new tool creation OR adding to existing
-  const handleNewTool = (e: React.FormEvent) => {
-    e.preventDefault();
-    const qty = Number(newQuantity) || 0;
-
-    if (newSelectedTool) {
-      // Adding quantity to existing tool
-      if (qty <= 0) return;
-      setTools(prev =>
-        prev.map(t =>
-          t.id === newSelectedTool.id
-            ? { ...t, quantity: t.quantity + qty }
-            : t
-        )
-      );
-
-      setMovements(prev => [
-        {
-          id: `mov-${Date.now()}`,
-          type: "entry" as const,
-          toolId: newSelectedTool.id,
-          userId: "eng-processo-1",
-          quantity: qty,
-          date: new Date().toISOString(),
-          notes: newNotes || `Adicao de estoque: +${qty} un. de ${newSelectedTool.code}`,
-        },
-        ...prev,
-      ]);
-
-      showSuccess(`+${qty} un. adicionadas a ${newSelectedTool.code} (${newSelectedTool.description}). Novo estoque: ${newSelectedTool.quantity + qty}`);
-      addNotification({
-        type: "entry",
-        title: "Estoque Atualizado",
-        message: `+${qty} un. de ${newSelectedTool.code} (${newSelectedTool.description}). Novo estoque: ${newSelectedTool.quantity + qty}`,
-      });
-    } else {
-      // Creating brand new tool
-      if (!newCode || !newDescription || !newTypeId || !newCabinetId || !newDrawerId) return;
-
-      const toolId = `tool-${Date.now()}`;
-      const newTool: Tool = {
-        id: toolId,
-        code: newCode,
-        description: newDescription,
-        typeId: newTypeId,
-        supplier: newSupplier,
-        statusId: "1",
-        cabinetId: newCabinetId,
-        drawerId: newDrawerId,
-        position: newPosition,
-        quantity: qty,
-        minStock: Number(newMinStock) || 0,
-        unitValue: newUnitValue ? Number(newUnitValue) : undefined,
-        reformUnitValue: newReformUnitValue ? Number(newReformUnitValue) : undefined,
-        notes: newNotes,
-      };
-
-      setTools(prev => [...prev, newTool]);
-
-      if (qty > 0) {
-        setMovements(prev => [
-          {
-            id: `mov-${Date.now()}`,
-            type: "entry" as const,
-            toolId,
-            userId: "eng-processo-1",
-            quantity: qty,
-            date: new Date().toISOString(),
-            notes: `Cadastro inicial: ${newCode} - ${newDescription}`,
-          },
-          ...prev,
-        ]);
-      }
-
-      showSuccess(`Ferramenta ${newCode} cadastrada com ${qty} un. no ${getCabinetName(newCabinetId)}`);
-      addNotification({
-        type: "add",
-        title: "Nova Ferramenta Cadastrada",
-        message: `${newCode} - ${newDescription} (Qtd: ${qty}) cadastrada no ${getCabinetName(newCabinetId)}`,
-      });
-    }
-
-    setNewSelectedTool(null);
-    setNewSearchTerm("");
-    setNewCode("");
-    setNewDescription("");
-    setNewTypeId("");
-    setNewSupplier("");
-    setNewCabinetId("");
-    setNewDrawerId("");
-    setNewPosition("");
-    setNewQuantity("");
-    setNewMinStock("");
-    setNewUnitValue("");
-    setNewReformUnitValue("");
-    setNewNotes("");
-  };
-
   return (
     <div className="min-h-screen">
       <Header
@@ -395,7 +360,7 @@ export default function EntryPage() {
                 Entrada de Ferramentas
               </p>
               <p className="text-xs text-muted-foreground">
-                Adicione ferramentas ao estoque. Se a ferramenta possui reforma pendente e voce informar o numero da NF, o sistema dara baixa automatica na reforma.
+                Registre a entrada de ferramentas novas ou reformadas no estoque. Se a ferramenta possui reforma pendente, selecione o envio para dar baixa automaticamente.
               </p>
             </div>
           </CardContent>
@@ -416,29 +381,34 @@ export default function EntryPage() {
         <Tabs value={tab} onValueChange={setTab}>
           <TabsList className="grid w-full grid-cols-2 max-w-md">
             <TabsTrigger value="existing" className="flex items-center gap-2">
-              <ArrowDownRight className="h-4 w-4" />
-              Ferramenta Existente
+              <Wrench className="h-4 w-4" />
+              Retorno de Reforma
             </TabsTrigger>
             <TabsTrigger value="new" className="flex items-center gap-2">
               <Plus className="h-4 w-4" />
-              Nova Ferramenta
+              Ferramenta Nova
             </TabsTrigger>
           </TabsList>
 
-          {/* TAB: Existing tool entry */}
+          {/* TAB: Retorno de reforma */}
           <TabsContent value="existing">
             <div className="grid gap-6 lg:grid-cols-2">
               {/* Tool Selection */}
               <Card className="bg-card border-border">
                 <CardHeader>
-                  <CardTitle>Selecionar Ferramenta</CardTitle>
-                  <CardDescription>Busque e selecione a ferramenta para entrada</CardDescription>
+                  <CardTitle className="flex items-center gap-2">
+                    <Wrench className="h-5 w-5 text-orange-500" />
+                    Selecionar Ferramenta em Reforma
+                  </CardTitle>
+                  <CardDescription>
+                    Busque ferramentas que estao aguardando retorno de reforma
+                  </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div className="relative">
                     <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                     <Input
-                      placeholder="Buscar por codigo ou descricao..."
+                      placeholder="Buscar ferramenta em reforma..."
                       value={searchTerm}
                       onChange={(e) => setSearchTerm(e.target.value)}
                       className="pl-9"
@@ -446,12 +416,18 @@ export default function EntryPage() {
                   </div>
 
                   <div className="max-h-[400px] overflow-y-auto space-y-2">
-                    {searchTerm && filteredTools.length === 0 ? (
-                      <p className="text-center text-muted-foreground py-4">
-                        Nenhuma ferramenta encontrada
-                      </p>
+                    {searchTerm && filteredToolsWithReform.length === 0 ? (
+                      <div className="text-center py-6 space-y-2">
+                        <Wrench className="h-8 w-8 mx-auto text-muted-foreground/50" />
+                        <p className="text-muted-foreground text-sm">
+                          Nenhuma ferramenta em reforma encontrada
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          Apenas ferramentas com envio para reforma pendente aparecem aqui.
+                        </p>
+                      </div>
                     ) : searchTerm ? (
-                      filteredTools.map((tool) => {
+                      filteredToolsWithReform.map((tool) => {
                         const toolPendingReforms = getPendingReforms(tool.id);
                         const reformPending = toolPendingReforms.reduce((a, s) => a + s.remaining, 0);
                         return (
@@ -504,9 +480,12 @@ export default function EntryPage() {
                         );
                       })
                     ) : (
-                      <p className="text-center text-muted-foreground py-8">
-                        Digite para buscar ferramentas
-                      </p>
+                      <div className="text-center py-8 space-y-2">
+                        <Wrench className="h-8 w-8 mx-auto text-orange-500/30" />
+                        <p className="text-muted-foreground">
+                          Digite para buscar ferramentas em reforma
+                        </p>
+                      </div>
                     )}
                   </div>
                 </CardContent>
@@ -515,7 +494,7 @@ export default function EntryPage() {
               {/* Entry Form */}
               <Card className="bg-card border-border">
                 <CardHeader>
-                  <CardTitle>Dados da Entrada</CardTitle>
+                  <CardTitle>Dados do Retorno</CardTitle>
                   <CardDescription>Preencha os dados da movimentacao</CardDescription>
                 </CardHeader>
                 <CardContent>
@@ -861,10 +840,10 @@ export default function EntryPage() {
             </div>
           </TabsContent>
 
-          {/* TAB: New tool */}
+          {/* TAB: Ferramenta Nova (ja existente no sistema) */}
           <TabsContent value="new">
             <div className="grid gap-6 lg:grid-cols-2">
-              {/* Search / Select Tool */}
+              {/* Search */}
               <Card className="bg-card border-border">
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
@@ -872,7 +851,7 @@ export default function EntryPage() {
                     Buscar Ferramenta
                   </CardTitle>
                   <CardDescription>
-                    Busque uma ferramenta existente para adicionar ao estoque, ou cadastre uma nova abaixo.
+                    Busque a ferramenta ja cadastrada no sistema para registrar a entrada de unidades novas.
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
@@ -894,10 +873,10 @@ export default function EntryPage() {
                       <div className="text-center py-6 space-y-2">
                         <Package className="h-8 w-8 mx-auto text-muted-foreground" />
                         <p className="text-sm text-muted-foreground">
-                          Nenhuma ferramenta encontrada para "{newSearchTerm}"
+                          {"Nenhuma ferramenta encontrada para \""}{newSearchTerm}{"\""}
                         </p>
                         <p className="text-xs text-muted-foreground">
-                          Preencha o formulario ao lado para cadastrar uma nova.
+                          Cadastre novas ferramentas pela aba Catalogo.
                         </p>
                       </div>
                     ) : newSearchTerm ? (
@@ -907,9 +886,6 @@ export default function EntryPage() {
                           onClick={() => {
                             setNewSelectedTool(tool);
                             setNewSearchTerm(tool.code);
-                            setNewCabinetId(tool.cabinetId);
-                            setNewDrawerId(tool.drawerId);
-                            setNewPosition(tool.position);
                           }}
                           className={`flex items-center justify-between p-3 rounded-lg border cursor-pointer transition-colors ${
                             newSelectedTool?.id === tool.id
@@ -951,23 +927,22 @@ export default function EntryPage() {
                 </CardContent>
               </Card>
 
-              {/* Form */}
+              {/* Entry Form */}
               <Card className="bg-card border-border">
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
                     <Plus className="h-5 w-5 text-primary" />
-                    {newSelectedTool ? "Adicionar ao Estoque" : "Cadastrar Nova Ferramenta"}
+                    Registrar Entrada
                   </CardTitle>
                   <CardDescription>
                     {newSelectedTool
-                      ? `Adicionando unidades a ${newSelectedTool.code} - ${newSelectedTool.description}`
-                      : "Preencha os dados para cadastrar uma nova ferramenta."}
+                      ? `Adicionando unidades novas a ${newSelectedTool.code}`
+                      : "Selecione uma ferramenta ao lado para registrar a entrada"}
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <form onSubmit={handleNewTool} className="space-y-6">
-                    {/* Selected existing tool info */}
-                    {newSelectedTool && (
+                  <form onSubmit={handleNewEntry} className="space-y-4">
+                    {newSelectedTool ? (
                       <div className="p-4 rounded-lg bg-primary/5 border border-primary/20">
                         <div className="flex items-center justify-between">
                           <div className="flex items-center gap-3">
@@ -1008,185 +983,41 @@ export default function EntryPage() {
                           </div>
                         </div>
                       </div>
+                    ) : (
+                      <div className="p-8 rounded-lg border border-dashed border-border text-center">
+                        <Package className="h-10 w-10 mx-auto text-muted-foreground mb-2" />
+                        <p className="text-muted-foreground">Selecione uma ferramenta ao lado</p>
+                      </div>
                     )}
 
-                    {/* New tool fields - only if no existing selected */}
-                    {!newSelectedTool && (
-                      <>
-                        <div>
-                          <p className="text-sm font-medium text-muted-foreground mb-3 flex items-center gap-2">
-                            <Package className="h-4 w-4" /> Dados da Ferramenta
-                          </p>
-                          <div className="grid gap-4">
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                              <div className="grid gap-2">
-                                <Label htmlFor="newCode">Codigo Interno *</Label>
-                                <Input
-                                  id="newCode"
-                                  placeholder="Ex: INS-006"
-                                  value={newCode}
-                                  onChange={(e) => setNewCode(e.target.value)}
-                                  required
-                                />
-                              </div>
-                              <div className="grid gap-2">
-                                <Label>Tipo *</Label>
-                                <Select value={newTypeId} onValueChange={setNewTypeId} required>
-                                  <SelectTrigger>
-                                    <SelectValue placeholder="Selecione o tipo" />
-                                  </SelectTrigger>
-                                  <SelectContent>
-                                    {toolTypes.filter(t => t.isActive).map((type) => (
-                                      <SelectItem key={type.id} value={type.id}>{type.name}</SelectItem>
-                                    ))}
-                                  </SelectContent>
-                                </Select>
-                              </div>
-                            </div>
-                            <div className="grid gap-2">
-                              <Label htmlFor="newDesc">Descricao Tecnica *</Label>
-                              <Input
-                                id="newDesc"
-                                placeholder="Ex: Inserto CNMG 120408 Metal Duro"
-                                value={newDescription}
-                                onChange={(e) => setNewDescription(e.target.value)}
-                                required
-                              />
-                            </div>
-                            <div className="grid gap-2">
-                              <Label htmlFor="newSupplier">Fornecedor</Label>
-                              <Input
-                                id="newSupplier"
-                                placeholder="Nome do fornecedor"
-                                value={newSupplier}
-                                onChange={(e) => setNewSupplier(e.target.value)}
-                              />
-                            </div>
-                          </div>
-                        </div>
-
-                        {/* Location */}
-                        <div>
-                          <p className="text-sm font-medium text-muted-foreground mb-3 flex items-center gap-2">
-                            <Archive className="h-4 w-4" /> Localizacao no Armario
-                          </p>
-                          <div className="grid gap-4">
-                            <div className="grid gap-2">
-                              <Label>Armario *</Label>
-                              <Select
-                                value={newCabinetId}
-                                onValueChange={(v) => {
-                                  setNewCabinetId(v);
-                                  setNewDrawerId("");
-                                  setNewPosition("");
-                                }}
-                                required
-                              >
-                                <SelectTrigger>
-                                  <SelectValue placeholder="Selecione o armario" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  {normalCabinets.map((c) => (
-                                    <SelectItem key={c.id} value={c.id}>{c.name} - {c.location}</SelectItem>
-                                  ))}
-                                </SelectContent>
-                              </Select>
-                            </div>
-
-                            {newCabinetId && (
-                              <div className="grid grid-cols-2 gap-4">
-                                <div className="grid gap-2">
-                                  <Label>Gaveta *</Label>
-                                  <Select value={newDrawerId} onValueChange={setNewDrawerId} required>
-                                    <SelectTrigger>
-                                      <SelectValue placeholder="Selecione" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                      {newDrawersForCabinet.map((d) => (
-                                        <SelectItem key={d.id} value={d.id}>Gaveta {d.number}</SelectItem>
-                                      ))}
-                                    </SelectContent>
-                                  </Select>
-                                </div>
-                                <div className="grid gap-2">
-                                  <Label>Posicao</Label>
-                                  {newDrawerId ? (
-                                    <Select value={newPosition} onValueChange={setNewPosition}>
-                                      <SelectTrigger>
-                                        <SelectValue placeholder="Posicao" />
-                                      </SelectTrigger>
-                                      <SelectContent>
-                                        {drawers.find(d => d.id === newDrawerId)?.positions.map((p) => (
-                                          <SelectItem key={p} value={p}>Posicao {p}</SelectItem>
-                                        ))}
-                                      </SelectContent>
-                                    </Select>
-                                  ) : (
-                                    <Input placeholder="Selecione a gaveta" disabled />
-                                  )}
-                                </div>
-                              </div>
-                            )}
-                          </div>
-                        </div>
-
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                          <div className="grid gap-2">
-                            <Label htmlFor="newMin">Estoque Minimo</Label>
-                            <Input
-                              id="newMin"
-                              type="number"
-                              min="0"
-                              placeholder="0"
-                              value={newMinStock}
-                              onChange={(e) => setNewMinStock(e.target.value)}
-                            />
-                          </div>
-                          <div className="grid gap-2">
-                            <Label htmlFor="newUnitValue">Valor Nova (R$)</Label>
-                            <Input
-                              id="newUnitValue"
-                              type="number"
-                              min="0"
-                              step="0.01"
-                              placeholder="0,00"
-                              value={newUnitValue}
-                              onChange={(e) => setNewUnitValue(e.target.value)}
-                            />
-                          </div>
-                          <div className="grid gap-2">
-                            <Label htmlFor="newReformUnitValue" className="flex items-center gap-1.5">
-                              Valor Reforma (R$)
-                              <span className="text-sky-400 text-[10px] font-mono">R</span>
-                            </Label>
-                            <Input
-                              id="newReformUnitValue"
-                              type="number"
-                              min="0"
-                              step="0.01"
-                              placeholder="0,00"
-                              value={newReformUnitValue}
-                              onChange={(e) => setNewReformUnitValue(e.target.value)}
-                            />
-                          </div>
-                        </div>
-                      </>
-                    )}
-
-                    {/* Quantity - always shown */}
+                    {/* Invoice */}
                     <div className="grid gap-2">
-                      <Label htmlFor="newQty" className="font-medium">
-                        {newSelectedTool ? "Quantidade a Adicionar *" : "Quantidade Inicial"}
+                      <Label htmlFor="newInvoice" className="flex items-center gap-2">
+                        <FileText className="h-4 w-4 text-muted-foreground" />
+                        Numero da Nota Fiscal
                       </Label>
+                      <Input
+                        id="newInvoice"
+                        placeholder="Ex: NF-2026-001234"
+                        value={newInvoiceNumber}
+                        onChange={(e) => setNewInvoiceNumber(e.target.value)}
+                        disabled={!newSelectedTool}
+                      />
+                    </div>
+
+                    {/* Quantity */}
+                    <div className="grid gap-2">
+                      <Label htmlFor="newQty">Quantidade *</Label>
                       <Input
                         id="newQty"
                         type="number"
-                        min={newSelectedTool ? "1" : "0"}
-                        placeholder={newSelectedTool ? "Quantas unidades adicionar?" : "0"}
+                        min="1"
+                        placeholder="Quantas unidades novas?"
                         value={newQuantity}
                         onChange={(e) => setNewQuantity(e.target.value)}
-                        required={!!newSelectedTool}
-                        className={newSelectedTool ? "text-lg font-mono" : ""}
+                        required
+                        disabled={!newSelectedTool}
+                        className="text-lg font-mono"
                       />
                       {newSelectedTool && newQuantity && Number(newQuantity) > 0 && (
                         <p className="text-xs text-muted-foreground">
@@ -1195,7 +1026,7 @@ export default function EntryPage() {
                       )}
                     </div>
 
-                    {/* Notes - always shown */}
+                    {/* Notes */}
                     <div className="grid gap-2">
                       <Label htmlFor="newNotes">Observacoes</Label>
                       <Textarea
@@ -1203,22 +1034,17 @@ export default function EntryPage() {
                         placeholder="Informacoes adicionais..."
                         value={newNotes}
                         onChange={(e) => setNewNotes(e.target.value)}
+                        disabled={!newSelectedTool}
                       />
                     </div>
 
                     <Button
                       type="submit"
                       className="w-full"
-                      disabled={
-                        newSelectedTool
-                          ? !newQuantity || Number(newQuantity) <= 0
-                          : !newCode || !newDescription || !newTypeId || !newCabinetId || !newDrawerId
-                      }
+                      disabled={!newSelectedTool || !newQuantity || Number(newQuantity) <= 0}
                     >
                       <Plus className="mr-2 h-4 w-4" />
-                      {newSelectedTool
-                        ? `Adicionar ${newQuantity || 0} un. ao Estoque`
-                        : "Cadastrar Ferramenta"}
+                      Registrar Entrada de {newQuantity || 0} un.
                     </Button>
                   </form>
                 </CardContent>

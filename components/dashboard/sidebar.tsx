@@ -70,6 +70,7 @@ const defaultNavigation: NavItem[] = [
     children: [
       { name: "Entrada", href: "/operacoes/entrada" },
       { name: "Reforma", href: "/operacoes/reforma" },
+      { name: "Enviar para Reforma", href: "/operacoes/enviar-reforma" },
     ],
   },
   {

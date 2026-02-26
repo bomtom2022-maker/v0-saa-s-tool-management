@@ -100,8 +100,9 @@ export default function HistoryPage() {
           (tool?.code || "").toLowerCase().includes(search) ||
           (tool?.description || "").toLowerCase().includes(search) ||
           (movement.notes || "").toLowerCase().includes(search) ||
-          (movement.invoiceNumber || "").toLowerCase().includes(search) ||
-          (movement.supplier || "").toLowerCase().includes(search) ||
+  (movement.invoiceNumber || "").toLowerCase().includes(search) ||
+  (movement.packingListNumber || "").toLowerCase().includes(search) ||
+  (movement.supplier || "").toLowerCase().includes(search) ||
           (user?.name || "").toLowerCase().includes(search);
 
         const matchesType = filterType === "all" || movement.type === filterType;
@@ -172,7 +173,7 @@ export default function HistoryPage() {
 
   // CSV Export
   const handleExportCSV = () => {
-    const headers = ["Data", "Hora", "Tipo", "Codigo", "Descricao", "Armario", "Gaveta", "Posicao", "Qtd", "Usuario", "NF", "Fornecedor", "Observacoes"];
+    const headers = ["Data", "Hora", "Tipo", "Codigo", "Descricao", "Armario", "Gaveta", "Posicao", "Qtd", "Usuario", "NF", "Romaneio", "Fornecedor", "Observacoes"];
     const rows = filteredMovements.map((m) => {
       const tool = getTool(m.toolId);
       const user = getUser(m.userId);
@@ -192,6 +193,7 @@ export default function HistoryPage() {
         `${m.type === "entry" || m.type === "invoice" || m.type === "reform_return" ? "+" : "-"}${m.quantity}`,
         user?.name || "N/A",
         m.invoiceNumber || "",
+        m.packingListNumber || "",
         m.supplier || "",
         (m.notes || "").replace(/,/g, ";"),
       ];
@@ -329,13 +331,14 @@ export default function HistoryPage() {
         `${isPositive ? "+" : "-"}${m.quantity}`,
         user?.name || m.userId,
         m.invoiceNumber || "-",
+        m.packingListNumber || "-",
         m.supplier || "-",
       ];
     });
 
     (doc as any).autoTable({
       startY: yPos,
-      head: [["Data/Hora", "Tipo", "Codigo", "Descricao", "Localizacao", "Qtd", "Usuario", "NF", "Fornecedor"]],
+      head: [["Data/Hora", "Tipo", "Codigo", "Descricao", "Localizacao", "Qtd", "Usuario", "NF", "Romaneio", "Fornecedor"]],
       body: tableData,
       margin: { left: margin, right: margin },
       styles: {
@@ -666,10 +669,13 @@ export default function HistoryPage() {
                         </span>
                         <span className="truncate ml-2">{user?.name || movement.userId}</span>
                       </div>
-                      {(movement.invoiceNumber || movement.supplier) && (
+                      {(movement.invoiceNumber || movement.packingListNumber || movement.supplier) && (
                         <div className="flex items-center gap-2 flex-wrap">
                           {movement.invoiceNumber && (
                             <Badge variant="outline" className="text-[10px]">{movement.invoiceNumber}</Badge>
+                          )}
+                          {movement.packingListNumber && (
+                            <Badge variant="outline" className="text-[10px] border-orange-500/30 text-orange-500">{"Rom: "}{movement.packingListNumber}</Badge>
                           )}
                           {movement.supplier && (
                             <span className="text-[11px] text-muted-foreground">{movement.supplier}</span>
@@ -795,10 +801,15 @@ export default function HistoryPage() {
                                   {movement.invoiceNumber}
                                 </Badge>
                               )}
+                              {movement.packingListNumber && (
+                                <Badge variant="outline" className="text-[11px] border-orange-500/30 text-orange-500">
+                                  {"Rom: "}{movement.packingListNumber}
+                                </Badge>
+                              )}
                               {movement.supplier && (
                                 <p className="text-xs text-muted-foreground truncate max-w-[120px]">{movement.supplier}</p>
                               )}
-                              {!movement.invoiceNumber && !movement.supplier && (
+                              {!movement.invoiceNumber && !movement.packingListNumber && !movement.supplier && (
                                 <span className="text-xs text-muted-foreground">-</span>
                               )}
                             </div>
@@ -921,6 +932,13 @@ export default function HistoryPage() {
                   <div className="flex items-center justify-between text-sm">
                     <span className="text-muted-foreground">Nota Fiscal</span>
                     <Badge variant="outline">{selectedMovement.invoiceNumber}</Badge>
+                  </div>
+                )}
+
+                {selectedMovement.packingListNumber && (
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-muted-foreground">Romaneio</span>
+                    <Badge variant="outline" className="border-orange-500/30 text-orange-500">{selectedMovement.packingListNumber}</Badge>
                   </div>
                 )}
 

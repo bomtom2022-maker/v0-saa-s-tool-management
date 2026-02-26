@@ -45,6 +45,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
 import {
   Archive,
   Plus,
@@ -60,6 +61,7 @@ import {
   AlertTriangle,
   Check,
   X,
+  Wrench,
 } from "lucide-react";
 import {
   type Cabinet,
@@ -85,6 +87,7 @@ export default function CabinetsPage() {
   const [selectedDrawer, setSelectedDrawer] = useState<Drawer | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [globalSearch, setGlobalSearch] = useState("");
+  const [isReformOnly, setIsReformOnly] = useState(false);
   const [inlineEditId, setInlineEditId] = useState<string | null>(null);
   const [inlineQty, setInlineQty] = useState("");
   const [inlineMinStock, setInlineMinStock] = useState("");
@@ -239,7 +242,7 @@ export default function CabinetsPage() {
       location: formData.get("location") as string,
       drawersCount: editingCabinet?.drawersCount || 0,
       totalTools: editingCabinet?.totalTools || 0,
-      isReformOnly: editingCabinet?.isReformOnly,
+      isReformOnly: isReformOnly,
     };
 
     if (editingCabinet) {
@@ -264,11 +267,12 @@ export default function CabinetsPage() {
       addNotification({
         type: "cabinet",
         title: "Novo armario criado",
-        message: `Armario "${newCabinet.name}" adicionado em ${newCabinet.location}`,
+        message: `Armario "${newCabinet.name}"${newCabinet.isReformOnly ? " (Reforma)" : ""} adicionado em ${newCabinet.location}`,
       });
     }
     setIsDialogOpen(false);
     setEditingCabinet(null);
+    setIsReformOnly(false);
   };
 
   // Delete cabinet (reform-only cabinets are protected)
@@ -290,6 +294,7 @@ export default function CabinetsPage() {
   // Edit cabinet
   const handleEditCabinet = (cabinet: Cabinet) => {
     setEditingCabinet(cabinet);
+    setIsReformOnly(!!cabinet.isReformOnly);
     setIsDialogOpen(true);
   };
 
@@ -705,7 +710,7 @@ export default function CabinetsPage() {
           <div className="flex justify-end">
             <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
               <DialogTrigger asChild>
-                <Button onClick={() => setEditingCabinet(null)}>
+                <Button onClick={() => { setEditingCabinet(null); setIsReformOnly(false); }}>
                   <Plus className="mr-2 h-4 w-4" />
                   Novo Armario
                 </Button>
@@ -748,6 +753,27 @@ export default function CabinetsPage() {
                         placeholder="Ex: Galpao 1, Setor A"
                         defaultValue={editingCabinet?.location}
                         required
+                      />
+                    </div>
+
+                    <div className="flex items-center justify-between rounded-lg border border-border p-3 gap-4">
+                      <div className="flex items-start gap-3">
+                        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-sky-500/10">
+                          <Wrench className="h-4 w-4 text-sky-400" />
+                        </div>
+                        <div className="space-y-0.5">
+                          <Label htmlFor="isReformOnly" className="text-sm font-medium cursor-pointer">
+                            Armario de Reforma
+                          </Label>
+                          <p className="text-xs text-muted-foreground">
+                            Ferramentas neste armario recebem automaticamente o sufixo "R" no codigo
+                          </p>
+                        </div>
+                      </div>
+                      <Switch
+                        id="isReformOnly"
+                        checked={isReformOnly}
+                        onCheckedChange={setIsReformOnly}
                       />
                     </div>
                   </div>

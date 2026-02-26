@@ -11,6 +11,7 @@ import {
   mockUsers,
   mockSuppliers,
   mockProfiles,
+  mockReformQueue,
   type Cabinet,
   type Drawer,
   type Tool,
@@ -19,6 +20,7 @@ import {
   type ToolType,
   type User,
   type Supplier,
+  type ReformQueueItem,
 } from "@/lib/mock-data";
 
 interface DataStore {
@@ -38,6 +40,8 @@ interface DataStore {
   setUsers: React.Dispatch<React.SetStateAction<User[]>>;
   suppliers: Supplier[];
   setSuppliers: React.Dispatch<React.SetStateAction<Supplier[]>>;
+  reformQueue: ReformQueueItem[];
+  setReformQueue: React.Dispatch<React.SetStateAction<ReformQueueItem[]>>;
   profiles: typeof mockProfiles;
 }
 
@@ -54,6 +58,7 @@ export function DataStoreProvider({ children }: { children: React.ReactNode }) {
   const [toolTypes, setToolTypes] = useState<ToolType[]>(mockToolTypes);
   const [users, setUsers] = useState<User[]>(mockUsers);
   const [suppliers, setSuppliers] = useState<Supplier[]>(mockSuppliers);
+  const [reformQueue, setReformQueue] = useState<ReformQueueItem[]>(mockReformQueue);
 
   // Load persisted data on mount (client only)
   const hasLoaded = useRef(false);
@@ -72,6 +77,7 @@ export function DataStoreProvider({ children }: { children: React.ReactNode }) {
         if (data.toolTypes) setToolTypes(data.toolTypes);
         if (data.users) setUsers(data.users);
         if (data.suppliers) setSuppliers(data.suppliers);
+        if (data.reformQueue) setReformQueue(data.reformQueue);
       }
     } catch {
       // ignore
@@ -88,12 +94,12 @@ export function DataStoreProvider({ children }: { children: React.ReactNode }) {
     try {
       sessionStorage.setItem(
         STORAGE_KEY,
-        JSON.stringify({ cabinets, drawers, tools, movements, statuses, toolTypes, users, suppliers })
+        JSON.stringify({ cabinets, drawers, tools, movements, statuses, toolTypes, users, suppliers, reformQueue })
       );
     } catch {
       // ignore quota errors
     }
-  }, [cabinets, drawers, tools, movements, statuses, toolTypes, users, suppliers]);
+  }, [cabinets, drawers, tools, movements, statuses, toolTypes, users, suppliers, reformQueue]);
 
   const value = useMemo(
     () => ({
@@ -113,9 +119,11 @@ export function DataStoreProvider({ children }: { children: React.ReactNode }) {
       setUsers,
       suppliers,
       setSuppliers,
+      reformQueue,
+      setReformQueue,
       profiles: mockProfiles,
     }),
-    [cabinets, drawers, tools, movements, statuses, toolTypes, users, suppliers]
+    [cabinets, drawers, tools, movements, statuses, toolTypes, users, suppliers, reformQueue]
   );
 
   return (

@@ -78,6 +78,19 @@ export interface Supplier {
   isActive: boolean;
 }
 
+export interface ReformQueueItem {
+  id: string;
+  toolId: string;
+  quantity: number;
+  supplierId: string;
+  supplierName: string;
+  notes: string;
+  addedAt: string; // ISO date - quando foi adicionado a fila
+  addedBy: string; // userId
+}
+
+export const mockReformQueue: ReformQueueItem[] = [];
+
 export interface Movement {
   id: string;
   type: 'entry' | 'exit' | 'reform_send' | 'reform_return' | 'invoice';
@@ -87,8 +100,10 @@ export interface Movement {
   date: string;
   notes: string;
   invoiceNumber?: string;
+  packingListNumber?: string; // numero do romaneio
   supplier?: string;
   estimatedReturn?: string; // ISO date - estimated return from reform
+  actualReturnDate?: string; // ISO date - data real do recebimento da reforma
 }
 
 // Placeholder cabinets
