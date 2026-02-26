@@ -69,7 +69,7 @@ const defaultNavigation: NavItem[] = [
     icon: <ArrowRightLeft className="h-5 w-5" />,
     children: [
       { name: "Entrada", href: "/operacoes/entrada" },
-      { name: "Reforma", href: "/operacoes/reforma" },
+      { name: "Estoque para Reforma", href: "/operacoes/reforma" },
       { name: "Enviar para Reforma", href: "/operacoes/enviar-reforma" },
     ],
   },
