@@ -87,17 +87,6 @@ const defaultNavigation: NavItem[] = [
   },
 ];
 
-function getStoredOrder(): string[] | null {
-  if (typeof window === "undefined") return null;
-  try {
-    const stored = localStorage.getItem("tms-sidebar-order");
-    if (stored) return JSON.parse(stored);
-  } catch {
-    // ignore
-  }
-  return null;
-}
-
 function saveOrder(order: string[]) {
   if (typeof window === "undefined") return;
   try {
@@ -134,9 +123,24 @@ export function Sidebar() {
   const companyLogoRef = useRef<HTMLInputElement>(null);
   const [isReorderMode, setIsReorderMode] = useState(false);
 
-  const [navItems, setNavItems] = useState<NavItem[]>(() =>
-    getOrderedNavigation(defaultNavigation, getStoredOrder())
-  );
+  // Initialize with default order, then load from localStorage in useEffect
+  const [navItems, setNavItems] = useState<NavItem[]>(defaultNavigation);
+  const hasLoadedOrder = useRef(false);
+
+  // Load order from localStorage only on client side
+  React.useEffect(() => {
+    if (hasLoadedOrder.current) return;
+    hasLoadedOrder.current = true;
+    try {
+      const stored = localStorage.getItem("tms-sidebar-order");
+      if (stored) {
+        const order = JSON.parse(stored);
+        setNavItems(getOrderedNavigation(defaultNavigation, order));
+      }
+    } catch {
+      // ignore
+    }
+  }, []);
 
   const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
