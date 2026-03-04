@@ -12,6 +12,9 @@ import {
   mockSuppliers,
   mockProfiles,
   mockReformQueue,
+  mockProductionLines,
+  mockMachines,
+  mockMachineToolAllocations,
   type Cabinet,
   type Drawer,
   type Tool,
@@ -21,6 +24,9 @@ import {
   type User,
   type Supplier,
   type ReformQueueItem,
+  type ProductionLine,
+  type Machine,
+  type MachineToolAllocation,
 } from "@/lib/mock-data";
 
 interface DataStore {
@@ -42,6 +48,12 @@ interface DataStore {
   setSuppliers: React.Dispatch<React.SetStateAction<Supplier[]>>;
   reformQueue: ReformQueueItem[];
   setReformQueue: React.Dispatch<React.SetStateAction<ReformQueueItem[]>>;
+  productionLines: ProductionLine[];
+  setProductionLines: React.Dispatch<React.SetStateAction<ProductionLine[]>>;
+  machines: Machine[];
+  setMachines: React.Dispatch<React.SetStateAction<Machine[]>>;
+  machineToolAllocations: MachineToolAllocation[];
+  setMachineToolAllocations: React.Dispatch<React.SetStateAction<MachineToolAllocation[]>>;
   profiles: typeof mockProfiles;
 }
 
@@ -59,6 +71,9 @@ export function DataStoreProvider({ children }: { children: React.ReactNode }) {
   const [users, setUsers] = useState<User[]>(mockUsers);
   const [suppliers, setSuppliers] = useState<Supplier[]>(mockSuppliers);
   const [reformQueue, setReformQueue] = useState<ReformQueueItem[]>(mockReformQueue);
+  const [productionLines, setProductionLines] = useState<ProductionLine[]>(mockProductionLines);
+  const [machines, setMachines] = useState<Machine[]>(mockMachines);
+  const [machineToolAllocations, setMachineToolAllocations] = useState<MachineToolAllocation[]>(mockMachineToolAllocations);
 
   // Load persisted data on mount (client only)
   const hasLoaded = useRef(false);
@@ -78,6 +93,9 @@ export function DataStoreProvider({ children }: { children: React.ReactNode }) {
         if (data.users) setUsers(data.users);
         if (data.suppliers) setSuppliers(data.suppliers);
         if (data.reformQueue) setReformQueue(data.reformQueue);
+        if (data.productionLines) setProductionLines(data.productionLines);
+        if (data.machines) setMachines(data.machines);
+        if (data.machineToolAllocations) setMachineToolAllocations(data.machineToolAllocations);
       }
     } catch {
       // ignore
@@ -94,12 +112,12 @@ export function DataStoreProvider({ children }: { children: React.ReactNode }) {
     try {
       sessionStorage.setItem(
         STORAGE_KEY,
-        JSON.stringify({ cabinets, drawers, tools, movements, statuses, toolTypes, users, suppliers, reformQueue })
+        JSON.stringify({ cabinets, drawers, tools, movements, statuses, toolTypes, users, suppliers, reformQueue, productionLines, machines, machineToolAllocations })
       );
     } catch {
       // ignore quota errors
     }
-  }, [cabinets, drawers, tools, movements, statuses, toolTypes, users, suppliers, reformQueue]);
+  }, [cabinets, drawers, tools, movements, statuses, toolTypes, users, suppliers, reformQueue, productionLines, machines, machineToolAllocations]);
 
   const value = useMemo(
     () => ({
@@ -121,9 +139,15 @@ export function DataStoreProvider({ children }: { children: React.ReactNode }) {
       setSuppliers,
       reformQueue,
       setReformQueue,
+      productionLines,
+      setProductionLines,
+      machines,
+      setMachines,
+      machineToolAllocations,
+      setMachineToolAllocations,
       profiles: mockProfiles,
     }),
-    [cabinets, drawers, tools, movements, statuses, toolTypes, users, suppliers, reformQueue]
+    [cabinets, drawers, tools, movements, statuses, toolTypes, users, suppliers, reformQueue, productionLines, machines, machineToolAllocations]
   );
 
   return (

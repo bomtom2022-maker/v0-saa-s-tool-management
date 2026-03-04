@@ -24,6 +24,7 @@ import {
   ArrowUp,
   ArrowDown,
   Settings2,
+  Factory,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/lib/auth";
@@ -85,6 +86,16 @@ const defaultNavigation: NavItem[] = [
     href: "/relatorios",
     icon: <FileText className="h-5 w-5" />,
   },
+  {
+    id: "producao",
+    name: "Producao",
+    href: "/producao",
+    icon: <Factory className="h-5 w-5" />,
+    children: [
+      { name: "Linhas de Producao", href: "/producao/linhas" },
+      { name: "Ferramentas em Maquinas", href: "/producao/ferramentas-maquinas" },
+    ],
+  },
 ];
 
 function getStoredOrder(): string[] | null {
@@ -128,7 +139,7 @@ function getOrderedNavigation(items: NavItem[], order: string[] | null): NavItem
 export function Sidebar() {
   const pathname = usePathname();
   const { user } = useAuth();
-  const [expandedItems, setExpandedItems] = useState<string[]>(["Configuracao", "Operacoes"]);
+  const [expandedItems, setExpandedItems] = useState<string[]>(["Configuracao", "Operacoes", "Producao"]);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [companyLogo, setCompanyLogo] = useState<string | null>(null);
   const companyLogoRef = useRef<HTMLInputElement>(null);

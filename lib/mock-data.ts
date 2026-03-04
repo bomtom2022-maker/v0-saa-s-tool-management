@@ -204,3 +204,63 @@ export const mockSuppliers: Supplier[] = [
 export const mockProfiles = [
   { id: '1', name: 'Administrador', permissions: ['all', 'view', 'edit_tools', 'edit_cabinets', 'edit_types', 'move_stock', 'invoices', 'reform', 'reports', 'manage_users'] },
 ];
+
+// Production Lines
+export interface ProductionLine {
+  id: string;
+  name: string;
+  description: string;
+  location: string;
+  isActive: boolean;
+  machinesCount: number;
+}
+
+export const mockProductionLines: ProductionLine[] = [
+  { id: 'pl-1', name: 'Linha 1 - Usinagem', description: 'Linha principal de usinagem CNC', location: 'Galpao 1', isActive: true, machinesCount: 5 },
+  { id: 'pl-2', name: 'Linha 2 - Torneamento', description: 'Linha de tornos CNC', location: 'Galpao 1', isActive: true, machinesCount: 4 },
+  { id: 'pl-3', name: 'Linha 3 - Fresamento', description: 'Linha de fresadoras', location: 'Galpao 2', isActive: true, machinesCount: 3 },
+  { id: 'pl-4', name: 'Linha 4 - Retifica', description: 'Linha de retificadoras', location: 'Galpao 2', isActive: false, machinesCount: 2 },
+];
+
+// Machines
+export interface Machine {
+  id: string;
+  name: string;
+  code: string;
+  productionLineId: string;
+  description: string;
+  brand: string;
+  model: string;
+  isActive: boolean;
+}
+
+export const mockMachines: Machine[] = [
+  { id: 'm-1', name: 'CNC Vertical 01', code: 'CNC-V01', productionLineId: 'pl-1', description: 'Centro de usinagem vertical', brand: 'Romi', model: 'D800', isActive: true },
+  { id: 'm-2', name: 'CNC Vertical 02', code: 'CNC-V02', productionLineId: 'pl-1', description: 'Centro de usinagem vertical', brand: 'Romi', model: 'D800', isActive: true },
+  { id: 'm-3', name: 'CNC Horizontal 01', code: 'CNC-H01', productionLineId: 'pl-1', description: 'Centro de usinagem horizontal', brand: 'Mazak', model: 'HCN-5000', isActive: true },
+  { id: 'm-4', name: 'Torno CNC 01', code: 'TRN-01', productionLineId: 'pl-2', description: 'Torno CNC com torre', brand: 'Romi', model: 'G550', isActive: true },
+  { id: 'm-5', name: 'Torno CNC 02', code: 'TRN-02', productionLineId: 'pl-2', description: 'Torno CNC com torre', brand: 'Romi', model: 'G550', isActive: true },
+  { id: 'm-6', name: 'Torno CNC 03', code: 'TRN-03', productionLineId: 'pl-2', description: 'Torno CNC multifuso', brand: 'Mazak', model: 'Integrex', isActive: true },
+  { id: 'm-7', name: 'Fresadora 01', code: 'FRS-01', productionLineId: 'pl-3', description: 'Fresadora CNC 3 eixos', brand: 'Haas', model: 'VF-2', isActive: true },
+  { id: 'm-8', name: 'Fresadora 02', code: 'FRS-02', productionLineId: 'pl-3', description: 'Fresadora CNC 5 eixos', brand: 'DMG Mori', model: 'DMU 50', isActive: true },
+  { id: 'm-9', name: 'Retifica 01', code: 'RET-01', productionLineId: 'pl-4', description: 'Retifica cilindrica', brand: 'Studer', model: 'S33', isActive: true },
+];
+
+// Machine Tools - ferramentas alocadas em maquinas
+export interface MachineToolAllocation {
+  id: string;
+  machineId: string;
+  toolId: string;
+  quantity: number;
+  allocatedAt: string; // ISO date
+  allocatedBy: string; // userId
+  notes: string;
+}
+
+export const mockMachineToolAllocations: MachineToolAllocation[] = [
+  { id: 'mta-1', machineId: 'm-1', toolId: '1', quantity: 4, allocatedAt: '2024-01-15T08:00:00', allocatedBy: 'eng-processo-1', notes: 'Operacao de desbaste' },
+  { id: 'mta-2', machineId: 'm-1', toolId: '6', quantity: 2, allocatedAt: '2024-01-15T08:00:00', allocatedBy: 'eng-processo-1', notes: 'Operacao de acabamento' },
+  { id: 'mta-3', machineId: 'm-4', toolId: '3', quantity: 6, allocatedAt: '2024-01-16T09:00:00', allocatedBy: 'eng-processo-1', notes: 'Torneamento externo' },
+  { id: 'mta-4', machineId: 'm-4', toolId: '2', quantity: 3, allocatedAt: '2024-01-16T09:00:00', allocatedBy: 'eng-processo-1', notes: 'Furacao' },
+  { id: 'mta-5', machineId: 'm-7', toolId: '7', quantity: 2, allocatedAt: '2024-01-17T10:00:00', allocatedBy: 'eng-processo-1', notes: 'Fresamento de cavidades' },
+];
