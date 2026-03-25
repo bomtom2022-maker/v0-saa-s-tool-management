@@ -178,3 +178,73 @@ interface ReformQueueItem {
 - [ ] APIs backend para persistência
 - [ ] Relatórios com gráficos Recharts
 - [ ] Importação/Exportação CSV/Excel
+
+## Implementação: Módulo de Reporte de Quebra (25/03/2026)
+
+### Funcionalidades Implementadas
+
+#### Interface de Reporte (Tab: Reportar Quebra)
+- Busca de ferramentas por código ou descrição
+- Exibe valor unitário (R$) de cada ferramenta
+- Adiciona múltiplas ferramentas ao reporte
+- Ajuste de quantidade (+/-)
+- Campos: Máquina, Turno (1º/2º/3º), Motivo da Quebra
+- Motivo personalizado quando "Outro" selecionado
+- Resumo do reporte com total estimado em R$
+- Mensagem de sucesso "Quebra Reportada com Sucesso!" após envio
+
+#### Estatísticas (Tab: Estatísticas)
+- **KPIs**:
+  - Total em Quebras (R$)
+  - Ferramentas Quebradas (quantidade)
+  - Máquina + Quebras (nome + contagem)
+  - Ferramenta + Quebrada (código + contagem)
+- **Filtro por Período**: Última Semana / Último Mês / Último Ano
+- **Histórico de Reportes**: Tabela com data/hora, turno, máquina, ferramentas, qtd, valor, motivo
+
+### Tipos TypeScript Adicionados
+
+```typescript
+type Turno = '1º Turno' | '2º Turno' | '3º Turno';
+
+interface BreakReportItem {
+  toolId: string;
+  toolCode: string;
+  toolDescription: string;
+  quantity: number;
+  unitValue: number;
+}
+
+interface BreakReport {
+  id: string;
+  date: string;
+  turno: Turno;
+  machine: string;
+  reason: string;
+  items: BreakReportItem[];
+  totalValue: number;
+  reportedBy?: string;
+  createdAt: string;
+}
+
+interface BreakReportAggregation {
+  totalValue: number;
+  totalQuantity: number;
+  machineWithMostBreaks: { machine: string; count: number; value: number } | null;
+  toolWithMostBreaks: { toolCode: string; toolDescription: string; count: number; value: number } | null;
+  reportCount: number;
+}
+```
+
+### Arquivos Criados/Modificados
+- `/app/frontend/app/(dashboard)/quebras/page.tsx` - Nova página
+- `/app/frontend/lib/mock-data.ts` - Tipos e dados mock
+- `/app/frontend/lib/data-store.tsx` - Estado global para breakReports
+- `/app/frontend/components/dashboard/sidebar.tsx` - Menu com nova opção
+
+### Próximos Passos (Backlog)
+- [ ] Versão pública simplificada (sem sidebar) para operadores do chão de fábrica
+- [ ] Login individual por operador para rastrear quem reportou
+- [ ] Integração com banco de dados MongoDB para persistência
+- [ ] Export de relatórios em Excel/PDF
+- [ ] Gráficos de tendência de quebras
