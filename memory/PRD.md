@@ -63,11 +63,17 @@ Clone e configurar o repositório: https://github.com/bomtom2022-maker/v0-saa-s-
 - ✅ Criação de ferramentas falhava (INSERT vs UPDATE)
 
 #### Dados Importados (Excel do Usuário)
-- ✅ Armário Insertos: 19 gavetas, 82 ferramentas
-- ✅ Gavetas 1-6 (G1-G6): 27 ferramentas
-- ✅ Gavetas 7-19: 55 ferramentas
-- ✅ 17 fornecedores cadastrados (SUMITOMO, TUNGALOY, SANDVIK, etc.)
-- ✅ Total: 1.373 peças em estoque
+- ✅ **Armário Insertos**: 19 gavetas, 82 ferramentas, 1.897 peças
+  - Gavetas 1-6 (G1-G6): 27 ferramentas
+  - Gavetas 7-19: 55 ferramentas
+- ✅ **Armário Brocas**: 30 gavetas (33-62), 109 ferramentas, 682 peças
+  - Brocas, alargadores, escareadores, fresas
+- ✅ **24 fornecedores** cadastrados:
+  - SUMITOMO, TUNGALOY, SANDVIK, MARKVISION, KENNAMETAL, BIGTOOLS
+  - MAPAL, DIAMANPAR, HANNA, QUALITEC, CONTINENTAL FERRAMENTAS
+  - SECO, REANTOOLS, SULVIDIAS, AFIASANT, GUHRING, NIPO-TEC
+  - OSG, WMTOOLS, WALTER, GUHRING/WALTER
+- ✅ **Total Geral**: 192 ferramentas, 2.629 peças em estoque
 
 ## Backlog Priorizado
 
