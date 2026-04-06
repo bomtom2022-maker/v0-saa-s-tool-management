@@ -75,6 +75,12 @@ Clone e configurar o repositório: https://github.com/bomtom2022-maker/v0-saa-s-
   - OSG, WMTOOLS, WALTER, GUHRING/WALTER
 - ✅ **Total Geral**: 192 ferramentas, 2.629 peças em estoque
 
+#### Funcionalidades Implementadas (06/04/2026)
+- ✅ Função de exclusão de armários com confirmação
+- ✅ Modal de alerta "Deseja mesmo apagar?" com detalhes
+- ✅ Soft delete no Supabase (is_active = false)
+- ✅ Exclusão em cascata (armário → gavetas → ferramentas)
+
 ## Backlog Priorizado
 
 ### P0 - Alta Prioridade
