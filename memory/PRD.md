@@ -80,6 +80,13 @@ Clone e configurar o repositório: https://github.com/bomtom2022-maker/v0-saa-s-
 - ✅ Modal de alerta "Deseja mesmo apagar?" com detalhes
 - ✅ Soft delete no Supabase (is_active = false)
 - ✅ Exclusão em cascata (armário → gavetas → ferramentas)
+- ✅ **VARREDURA COMPLETA** - Todas funções de exclusão corrigidas:
+  - ✅ Fornecedores - exclusão persistente no Supabase + modal
+  - ✅ Tipos de Ferramenta - exclusão persistente + modal
+  - ✅ Status - exclusão persistente + modal  
+  - ✅ Armários - exclusão persistente + modal
+  - ✅ Gavetas - exclusão persistente + modal
+  - ✅ Ferramentas (Catálogo) - exclusão persistente + modal
 
 ## Backlog Priorizado
 
