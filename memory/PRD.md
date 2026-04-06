@@ -87,6 +87,11 @@ Clone e configurar o repositório: https://github.com/bomtom2022-maker/v0-saa-s-
   - ✅ Armários - exclusão persistente + modal
   - ✅ Gavetas - exclusão persistente + modal
   - ✅ Ferramentas (Catálogo) - exclusão persistente + modal
+- ✅ **Página Reforma** - Corrigida para funcionar com Supabase:
+  - ✅ Ferramentas aparecem ao selecionar armário (não só na busca)
+  - ✅ Adicionar à fila de reforma persiste no Supabase
+  - ✅ Remover da fila persiste no Supabase
+  - ✅ Função getDrawerLabel corrigida
 
 ## Backlog Priorizado
 
