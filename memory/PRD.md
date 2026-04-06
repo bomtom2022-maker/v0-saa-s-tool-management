@@ -1,250 +1,107 @@
 # TMS One - Sistema de Gestão de Ferramentas CNC
 
-## Visão Geral
-Sistema SaaS para gestão de ferramentas de corte em usinagem CNC, desenvolvido em Next.js 16 com TypeScript.
+## Problema Original
+Clone e configurar o repositório: https://github.com/bomtom2022-maker/v0-saa-s-tool-management
+- Aplicação SaaS Tool Management construída com Next.js/TypeScript
+- Criar módulo 'Reporte de Quebra de Turno'
+- Migrar estrutura de mock data para banco Supabase PostgreSQL
+- Corrigir bugs de UI relacionados a gavetas, posições e formulários
+- Recriar "Armário Insertos" com ferramentas baseadas em Excel do usuário
 
 ## Arquitetura
 
 ### Stack Tecnológica
-- **Frontend**: Next.js 16 (App Router), React 19, TypeScript
-- **UI**: Tailwind CSS 4, Radix UI, Lucide Icons, Recharts
-- **Formulários**: React Hook Form + Zod
-- **Estado**: Context API (DataStore), SessionStorage para persistência
-- **Deployment Original**: Vercel (v0.app)
+- **Frontend**: Next.js 16 + React 19 + TypeScript
+- **Estilização**: Tailwind CSS 4 + shadcn/ui
+- **Banco de Dados**: Supabase PostgreSQL (externo)
+- **Estado**: Context API (DataStore pattern com fallback para mock)
 
-### Estrutura de Pastas
+### Estrutura de Diretórios
 ```
 /app/frontend/
-├── app/                    # Next.js App Router
-│   ├── (dashboard)/        # Layout do dashboard
-│   │   ├── catalogo/       # Catálogo de ferramentas
-│   │   ├── configuracao/   # Configurações (armários, tipos, status, etc.)
-│   │   ├── historico/      # Histórico de movimentações
-│   │   ├── operacoes/      # Operações (entrada, reforma, envio)
-│   │   └── relatorios/     # Relatórios
-│   └── globals.css         # Estilos globais (tema dark)
-├── components/             # Componentes React
-│   ├── dashboard/          # Componentes do dashboard
-│   └── ui/                 # Componentes UI (shadcn/radix)
-├── lib/                    # Lógica core
-│   ├── auth.tsx            # Sistema de autenticação
-│   ├── data-store.tsx      # Estado global e persistência
-│   ├── mock-data.ts        # Dados mock e interfaces TypeScript
-│   ├── notifications.tsx   # Sistema de notificações
-│   └── utils.ts            # Utilitários
-└── hooks/                  # Custom hooks
+├── app/(dashboard)/     # Rotas autenticadas
+│   ├── catalogo/        # Catálogo de ferramentas
+│   ├── configuracao/    # Armários, Tipos, Status, Fornecedores
+│   ├── operacoes/       # Entrada e Reforma
+│   ├── historico/       # Histórico de movimentações
+│   ├── relatorios/      # Relatórios
+│   └── quebras/         # Reporte de Quebra de Turno
+├── components/          # Componentes UI (shadcn)
+├── database/            # SQL schemas e seeds
+├── lib/
+│   ├── data-store.tsx   # Context API global (Supabase)
+│   ├── supabase.ts      # Cliente Supabase
+│   ├── supabase-api.ts  # Funções API Supabase
+│   └── mock-data.ts     # Fallback local
 ```
 
-## Módulos e Funcionalidades
+### Schema do Banco (Supabase)
+- `tools`: Ferramentas (code, description, type_id, status_id, supplier_id, cabinet_id, drawer_id, position, quantity, min_stock)
+- `cabinets`: Armários (name, location, is_reform_cabinet)
+- `drawers`: Gavetas (cabinet_id, code, name, positions)
+- `tool_types`: Tipos de ferramenta (code, name)
+- `tool_statuses`: Status (code, name, color)
+- `suppliers`: Fornecedores (name, code)
+- `movements`: Movimentações de estoque
+- `break_reports` / `break_report_items`: Relatórios de quebra
 
-### 1. Dashboard (/)
-- KPIs: Total ferramentas, valor estoque, armários ativos, estoque mínimo, em reforma
-- Movimentações recentes
-- Visão geral de armários
-- Status das ferramentas
+## O Que Foi Implementado
 
-### 2. Catálogo (/catalogo)
-- CRUD completo de ferramentas
-- Busca e filtros por tipo/status
-- Seleção cascata: Armário → Gaveta → Posição
-- Ajuste rápido de quantidade (entrada/saída)
-- Tags de preço (novo vs reforma)
-- Código com sufixo "R" para ferramentas reformadas
+### Data: 06/04/2026
 
-### 3. Configurações (/configuracao)
-- **Armários**: Gestão de armários (normais e de reforma A-R/B-R)
-- **Gavetas**: Posições por gaveta
-- **Tipos**: Tipos de ferramenta (Inserto, Broca, Fresa, Macho, etc.)
-- **Status**: Estados (Em Estoque, Em Uso, Em Reforma, Quebrada)
-- **Fornecedores**: Cadastro com CNPJ, contato, telefone, email
-- **Usuários**: Gestão de usuários e perfis
+#### Funcionalidades Core
+- ✅ Página `/quebras` (Reporte de Quebra de Turno) com exportação CSV
+- ✅ Integração completa com Supabase PostgreSQL
+- ✅ Schema SQL completo (`/app/frontend/database/schema.sql`)
+- ✅ DataStore Context migrando de mock para Supabase
+- ✅ Sidebar reestruturado com categorias fechadas por padrão
 
-### 4. Operações (/operacoes)
+#### Bugs Corrigidos
+- ✅ Páginas `/configuracao/tipos` e `/configuracao/armarios` não abriam
+- ✅ Sobreposição de texto nas gavetas e posições
+- ✅ Dropdown cascata (Armário -> Gaveta -> Posição)
+- ✅ Criação de ferramentas falhava (INSERT vs UPDATE)
 
-#### 4.1 Entrada (/operacoes/entrada)
-- **Retorno de Reforma**: Recebe ferramentas reformadas
-  - Busca ferramentas com reforma pendente
-  - Transforma código (ex: INS-001 → INS-001R)
-  - Destino automático para armário de reformadas
-  - Baixa na NF de envio
-- **Ferramenta Nova**: Entrada de unidades novas
-  - Registro com NF
-  - Atualiza estoque existente
+#### Dados Importados (Excel do Usuário)
+- ✅ Armário Insertos: 19 gavetas, 82 ferramentas
+- ✅ Gavetas 1-6 (G1-G6): 27 ferramentas
+- ✅ Gavetas 7-19: 55 ferramentas
+- ✅ 17 fornecedores cadastrados (SUMITOMO, TUNGALOY, SANDVIK, etc.)
+- ✅ Total: 1.373 peças em estoque
 
-#### 4.2 Fila de Reforma (/operacoes/reforma)
-- **Fila de Envio**: Adiciona ferramentas à fila
-  - Seleção de fornecedor
-  - Consolidação automática por ferramenta+fornecedor
-  - Preview do código pós-reforma (sufixo R)
-- **Em Reforma**: Acompanhamento
-  - KPIs: Total, Aguardando, Atrasadas, Retornadas
-  - Filtros por status e fornecedor
-  - Detalhes completos de cada envio
+## Backlog Priorizado
 
-#### 4.3 Enviar para Reforma (/operacoes/enviar-reforma)
-- Seleção de itens da fila
-- Validação: não permite múltiplos fornecedores
-- Dados do envio: NF, Romaneio, Data retorno estimado
-- Confirmação com lista detalhada
+### P0 - Alta Prioridade
+- [ ] **Sistema de Autenticação/Login** - Usuário solicitou login para cada pessoa reportar via sua página específica
 
-### 5. Histórico (/historico)
-- Todas as movimentações registradas
-- Filtros e busca
+### P1 - Média Prioridade
+- [ ] Implementar upload de logo da empresa funcional
+- [ ] Melhorar validação de formulários
 
-### 6. Relatórios (/relatorios)
-- Exportação PDF/Excel
-- Gráficos e análises
+### P2 - Baixa Prioridade
+- [ ] Relatórios avançados com gráficos
+- [ ] Exportação de dados em mais formatos
+- [ ] Notificações push para estoque baixo
 
-## Interfaces TypeScript Principais
+## Credenciais e Configuração
 
-```typescript
-interface Tool {
-  id: string;
-  code: string;              // Código interno (sufixo R = reformada)
-  description: string;
-  typeId: string;
-  supplier: string;
-  statusId: string;
-  cabinetId: string;
-  drawerId: string;
-  position: string;
-  quantity: number;
-  minStock: number;
-  unitValue?: number;        // Preço nova
-  reformUnitValue?: number;  // Preço reforma
-  reformDate?: string;
-  reformCount?: number;
-}
+### Supabase
+- URL: `https://ssokcnqpegurvdrdkmcw.supabase.co`
+- Anon Key: Configurado em `/app/frontend/.env`
+- Service Role Key: Configurado em `/app/frontend/.env`
 
-interface Movement {
-  id: string;
-  type: 'entry' | 'exit' | 'reform_send' | 'reform_return' | 'invoice';
-  toolId: string;
-  userId: string;
-  quantity: number;
-  date: string;
-  notes: string;
-  invoiceNumber?: string;
-  packingListNumber?: string;
-  supplier?: string;
-  estimatedReturn?: string;
-  actualReturnDate?: string;
-}
+### Variáveis de Ambiente
+- `NEXT_PUBLIC_SUPABASE_URL`
+- `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+- `SUPABASE_SERVICE_ROLE_KEY`
 
-interface ReformQueueItem {
-  id: string;
-  toolId: string;
-  quantity: number;
-  supplierId: string;
-  supplierName: string;
-  notes: string;
-  addedAt: string;
-  addedBy: string;
-}
-```
+## Arquivos Importantes
+- `/app/frontend/database/schema.sql` - Schema completo
+- `/app/frontend/database/seed-tools-part2.sql` - Seed das ferramentas
+- `/app/frontend/lib/data-store.tsx` - Context API principal
+- `/app/frontend/lib/supabase-api.ts` - Funções de API
 
-## Fluxo de Reforma
-
-1. **Adicionar à Fila** (Reforma → Fila de Envio)
-   - Seleciona ferramenta + fornecedor + quantidade
-   - Vai para fila de envio
-
-2. **Enviar** (Enviar para Reforma)
-   - Seleciona itens da fila
-   - Preenche NF, romaneio, data retorno
-   - Cria movement `reform_send`
-   - Remove da fila
-
-3. **Retornar** (Entrada → Retorno de Reforma)
-   - Seleciona ferramenta com reforma pendente
-   - Transforma código para sufixo "R"
-   - Cria movement `reform_return`
-   - Ferramenta vai para armário A-R ou B-R
-
-## Git
-- **Repositório**: https://github.com/bomtom2022-maker/v0-saa-s-tool-management
-- **Branch**: main
-- **Remote**: origin
-
-## Status
-- ✅ Clonado e configurado no ambiente Emergent
-- ✅ Build Next.js realizado
-- ✅ Frontend rodando na porta 3000
-- ✅ Git intacto para push futuro
-
-## Próximos Passos Sugeridos
-- [ ] Integrar com banco de dados real (MongoDB)
-- [ ] Implementar autenticação real
-- [ ] APIs backend para persistência
-- [ ] Relatórios com gráficos Recharts
-- [ ] Importação/Exportação CSV/Excel
-
-## Implementação: Módulo de Reporte de Quebra (25/03/2026)
-
-### Funcionalidades Implementadas
-
-#### Interface de Reporte (Tab: Reportar Quebra)
-- Busca de ferramentas por código ou descrição
-- Exibe valor unitário (R$) de cada ferramenta
-- Adiciona múltiplas ferramentas ao reporte
-- Ajuste de quantidade (+/-)
-- Campos: Máquina, Turno (1º/2º/3º), Motivo da Quebra
-- Motivo personalizado quando "Outro" selecionado
-- Resumo do reporte com total estimado em R$
-- Mensagem de sucesso "Quebra Reportada com Sucesso!" após envio
-
-#### Estatísticas (Tab: Estatísticas)
-- **KPIs**:
-  - Total em Quebras (R$)
-  - Ferramentas Quebradas (quantidade)
-  - Máquina + Quebras (nome + contagem)
-  - Ferramenta + Quebrada (código + contagem)
-- **Filtro por Período**: Última Semana / Último Mês / Último Ano
-- **Histórico de Reportes**: Tabela com data/hora, turno, máquina, ferramentas, qtd, valor, motivo
-
-### Tipos TypeScript Adicionados
-
-```typescript
-type Turno = '1º Turno' | '2º Turno' | '3º Turno';
-
-interface BreakReportItem {
-  toolId: string;
-  toolCode: string;
-  toolDescription: string;
-  quantity: number;
-  unitValue: number;
-}
-
-interface BreakReport {
-  id: string;
-  date: string;
-  turno: Turno;
-  machine: string;
-  reason: string;
-  items: BreakReportItem[];
-  totalValue: number;
-  reportedBy?: string;
-  createdAt: string;
-}
-
-interface BreakReportAggregation {
-  totalValue: number;
-  totalQuantity: number;
-  machineWithMostBreaks: { machine: string; count: number; value: number } | null;
-  toolWithMostBreaks: { toolCode: string; toolDescription: string; count: number; value: number } | null;
-  reportCount: number;
-}
-```
-
-### Arquivos Criados/Modificados
-- `/app/frontend/app/(dashboard)/quebras/page.tsx` - Nova página
-- `/app/frontend/lib/mock-data.ts` - Tipos e dados mock
-- `/app/frontend/lib/data-store.tsx` - Estado global para breakReports
-- `/app/frontend/components/dashboard/sidebar.tsx` - Menu com nova opção
-
-### Próximos Passos (Backlog)
-- [ ] Versão pública simplificada (sem sidebar) para operadores do chão de fábrica
-- [ ] Login individual por operador para rastrear quem reportou
-- [ ] Integração com banco de dados MongoDB para persistência
-- [ ] Export de relatórios em Excel/PDF
-- [ ] Gráficos de tendência de quebras
+## Notas Técnicas
+- App usa Supabase diretamente do frontend (sem backend FastAPI)
+- Fallback para mock-data.ts se conexão Supabase falhar
+- Hot reload habilitado via yarn dev
