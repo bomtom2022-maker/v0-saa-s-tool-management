@@ -81,6 +81,9 @@ Clone e configurar o repositório: https://github.com/bomtom2022-maker/v0-saa-s-
 - ✅ Soft delete no Supabase (is_active = false)
 - ✅ Exclusão em cascata (armário → gavetas → ferramentas)
 - ✅ **VARREDURA COMPLETA** - Todas funções de exclusão corrigidas:
+
+#### Bugs Corrigidos (13/04/2026 - 15/04/2026)
+- ✅ **Client-Side Exception na página /historico** - Corrigido tipo `Movement` para incluir todos os valores do enum `movement_type` do Supabase: `entry`, `exit`, `reform_send`, `reform_return`, `invoice`, `adjustment`, `transfer`, `disposal`. Anteriormente, o TypeScript só aceitava 5 tipos, mas o banco de dados tinha 7, causando crash quando um movimento de tipo não reconhecido chegava do Supabase.
   - ✅ Fornecedores - exclusão persistente no Supabase + modal
   - ✅ Tipos de Ferramenta - exclusão persistente + modal
   - ✅ Status - exclusão persistente + modal  
