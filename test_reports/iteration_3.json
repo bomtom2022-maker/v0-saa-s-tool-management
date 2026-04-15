@@ -1,0 +1,43 @@
+{
+  "summary": "Fixed the /historico page 'Application error: a client-side exception has occurred' bug. Root cause: Empty string values in Select.Item components from movements with empty userId. Fixed by filtering out empty/falsy user IDs in activeUserIds useMemo.",
+  "backend_issues": {},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "passed_tests": [
+    "/historico page loads without 'Application error' after fix",
+    "Header 'Historico e Auditoria' visible",
+    "Filters section visible with all dropdowns working",
+    "Stats cards (Entradas, Saidas, Env. Reforma, etc.) visible",
+    "Registro de Movimentacoes table visible with data",
+    "Homepage (/) loads without errors",
+    "/catalogo page loads without errors",
+    "/quebras page loads without errors",
+    "Supabase data loads successfully (console shows '✅ Dados carregados do Supabase com sucesso!')"
+  ],
+  "test_report_links": [],
+  "action_items": [],
+  "critical_code_review_comments": [],
+  "updated_files": ["/app/frontend/app/(dashboard)/historico/page.tsx"],
+  "success_rate": {
+    "frontend": "100%",
+    "backend": "N/A - Frontend only with Supabase"
+  },
+  "seed_data_creation": "",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "The /historico page bug was caused by empty userId values in movements data from Supabase. The fix filters out empty strings before rendering Select.Item components. All pages now load correctly.",
+  "rca_of_the_issue": {
+    "root_cause": "The activeUserIds useMemo in /app/frontend/app/(dashboard)/historico/page.tsx was collecting all userId values from movements, including empty strings. When these empty strings were used as values for Select.Item components, it caused a React error: 'A <Select.Item /> must have a value prop that is not an empty string'",
+    "reproduction_steps": [
+      "Navigate to /historico page",
+      "Page crashes with 'Application error: a client-side exception has occurred'",
+      "Browser console shows: 'A <Select.Item /> must have a value prop that is not an empty string'"
+    ],
+    "fix_applied": "Added filter to activeUserIds useMemo: movements.map((m) => m.userId).filter((id) => id && id.trim() !== '')",
+    "file_changed": "/app/frontend/app/(dashboard)/historico/page.tsx",
+    "line_changed": "148-151"
+  }
+}
