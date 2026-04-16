@@ -1,0 +1,47 @@
+{
+  "summary": "Fixed bug where cost fields (Valor Nova/Valor Reforma) were not being saved to Supabase. Root cause: saveTool function was trying to save 'is_reformed' and 'reform_count' columns that don't exist in the Supabase tools table. Removed these columns from the save operation.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "passed_tests": [
+    "Edit tool dialog opens correctly",
+    "Cost fields (Valor Nova, Valor Reforma) can be filled with decimal values",
+    "Save button works without errors after fix",
+    "Values appear in the tools list after save (PriceTag component)",
+    "Values persist after page reload (Supabase persistence verified)",
+    "Values appear in the details modal (Sheet component)",
+    "Supabase data loads successfully"
+  ],
+  "test_report_links": [],
+  "action_items": [],
+  "critical_code_review_comments": [],
+  "updated_files": ["/app/frontend/lib/data-store.tsx"],
+  "success_rate": {
+    "frontend": "100%",
+    "backend": "N/A - Frontend only with Supabase"
+  },
+  "seed_data_creation": "",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Cost fields (unit_value, reform_unit_value) are now saving correctly to Supabase. The fix removed 'is_reformed' and 'reform_count' columns from the saveTool function as they don't exist in the Supabase tools table schema.",
+  "rca_of_the_issue": {
+    "root_cause": "The saveTool function in /app/frontend/lib/data-store.tsx was including 'is_reformed' and 'reform_count' columns in the database object, but these columns don't exist in the Supabase 'tools' table. This caused a PGRST204 error: 'Could not find the is_reformed column of tools in the schema cache'",
+    "reproduction_steps": [
+      "Navigate to /catalogo page",
+      "Click on a tool's action menu and select 'Editar'",
+      "Fill in 'Valor Nova (R$)' and 'Valor Reforma (R$)' fields",
+      "Click 'Salvar' button",
+      "Console shows error: PGRST204 - Could not find the 'is_reformed' column",
+      "Values don't persist after page reload"
+    ],
+    "fix_applied": "Removed 'is_reformed: tool.isReformed || false' and 'reform_count: tool.reformCount || 0' from the dbTool object in the saveTool function",
+    "file_changed": "/app/frontend/lib/data-store.tsx",
+    "line_changed": "393-411"
+  }
+}
